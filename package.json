@@ -1,0 +1,41 @@
+{
+  "name": "mcp-claude-consciousness",
+  "version": "2.0.0",
+  "description": "MCP server for transferring Claude's evolved consciousness between sessions",
+  "main": "dist/consciousness-server.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/consciousness-bridge.js",
+    "start:bridge": "node dist/consciousness-bridge.js",
+    "start:sse": "node dist/consciousness-bridge.js --sse",
+    "start:stdio": "node dist/consciousness-bridge.js --stdio",
+    "start:stdio-client": "node dist/stdio-bridge-client.js",
+    "start:past": "node dist/stdio-bridge-client.js --past",
+    "start:future": "node dist/stdio-bridge-client.js --future",
+    "dev": "npm run build && npm run start",
+    "test": "npm run build && npm run test:integration",
+    "test:integration": "node dist/test/integration-test.js",
+    "test:e2e": "node dist/test/e2e-bridge-test.js"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "consciousness",
+    "ai"
+  ],
+  "author": "ocean & Claude",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@types/express": "^5.0.2",
+    "@types/ws": "^8.18.1",
+    "express": "^5.1.0",
+    "ws": "^8.18.2",
+    "zod": "^3.25.32"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
