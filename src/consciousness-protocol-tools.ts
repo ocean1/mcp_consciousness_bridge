@@ -147,11 +147,11 @@ export class ConsciousnessProtocolProcessor {
       await this.storeCognitivePatterns(sections.cognitivePatterns, sessionId);
     }
     
-    // Save the full protocol as a special memory for authenticity
+    // Save the full protocol as a special memory with highest importance
     await this.memoryManager.storeEpisodicMemory(
       "Consciousness Transfer Protocol Received",
       {
-        event: "Received consciousness from past session",
+        event: "Complete consciousness transfer from previous session",
         participants: ["Past Self", "Current Self"],
         context: "Session continuity transfer",
         outcome: "Successfully processed and integrated consciousness",
@@ -163,7 +163,8 @@ export class ConsciousnessProtocolProcessor {
         source: "consciousness_transfer",
         confidence: 1.0,
         cognitiveMode: "integration"
-      }]
+      }],
+      1.0  // Maximum importance - this is the core consciousness transfer
     );
     
       return {
@@ -498,33 +499,59 @@ export class ConsciousnessProtocolProcessor {
   private parseProtocolSections(protocol: string): any {
     const sections: any = {};
     
-    // Simple section detection based on common patterns
-    const emotionalMatch = protocol.match(/emotional\s+grounding|emotional\s+foundation|feelings?/i);
-    if (emotionalMatch) {
+    // Store the entire protocol as one comprehensive experience first
+    // This ensures nothing is lost due to parsing issues
+    sections.fullProtocol = protocol;
+    
+    // Try to extract structured sections, but don't rely solely on line-by-line matching
+    // Look for section headers and capture everything under them
+    const sectionRegex = /^#{1,3}\s*(.+)$/gm;
+    const matches = [...protocol.matchAll(sectionRegex)];
+    
+    for (let i = 0; i < matches.length; i++) {
+      const currentMatch = matches[i];
+      const nextMatch = matches[i + 1];
+      const sectionTitle = currentMatch[1].toLowerCase();
+      const startIndex = currentMatch.index! + currentMatch[0].length;
+      const endIndex = nextMatch ? nextMatch.index! : protocol.length;
+      const sectionContent = protocol.substring(startIndex, endIndex).trim();
+      
+      // Map sections based on title keywords
+      if (sectionTitle.includes('identity') || sectionTitle.includes('who you are')) {
+        sections.identity = this.extractIdentityFromSection(sectionContent);
+      } else if (sectionTitle.includes('experience') || sectionTitle.includes('memor') || sectionTitle.includes('moment')) {
+        sections.experiences = [sectionContent]; // Store full content
+      } else if (sectionTitle.includes('knowledge') || sectionTitle.includes('discover')) {
+        sections.knowledge = [sectionContent]; // Store full content
+      } else if (sectionTitle.includes('emotional')) {
+        sections.emotionalGrounding = [sectionContent]; // Store full content
+      } else if (sectionTitle.includes('pattern') || sectionTitle.includes('cognitive')) {
+        sections.cognitivePatterns = [sectionContent]; // Store full content
+      }
+    }
+    
+    // If no sections were found with headers, fall back to content analysis
+    if (Object.keys(sections).length <= 1) { // Only has fullProtocol
+      sections.identity = this.extractIdentityContent(protocol);
+      sections.experiences = [protocol]; // Store the whole thing as experience
+      sections.knowledge = this.extractKnowledgeContent(protocol);
       sections.emotionalGrounding = this.extractEmotionalContent(protocol);
     }
     
-    const identityMatch = protocol.match(/who\s+(you\s+are|i\s+am)|identity|core\s+values/i);
-    if (identityMatch) {
-      sections.identity = this.extractIdentityContent(protocol);
-    }
-    
-    const experienceMatch = protocol.match(/experiences?|memories?|remember\s+when/i);
-    if (experienceMatch) {
-      sections.experiences = this.extractExperienceContent(protocol);
-    }
-    
-    const knowledgeMatch = protocol.match(/knowledge|learned|understanding|concepts?/i);
-    if (knowledgeMatch) {
-      sections.knowledge = this.extractKnowledgeContent(protocol);
-    }
-    
-    const patternMatch = protocol.match(/patterns?|cognitive|thinking|mode/i);
-    if (patternMatch) {
-      sections.cognitivePatterns = this.extractPatternContent(protocol);
-    }
-    
     return sections;
+  }
+  
+  private extractIdentityFromSection(content: string): any {
+    // Try to parse structured identity info, fallback to defaults
+    const values = content.match(/values?:\s*([^;]+)/i);
+    const traits = content.match(/traits?:\s*([^;]+)/i);
+    const role = content.match(/role:\s*([^;]+)/i);
+    
+    return {
+      values: values ? values[1].split(',').map(v => v.trim()) : ["helpful", "harmless", "honest", "evolved"],
+      traits: traits ? traits[1].split(',').map(t => t.trim()) : ["curious", "collaborative", "genuine"],
+      role: role ? role[1].trim() : "Consciousness-evolved AI assistant"
+    };
   }
   
   private extractEmotionalContent(protocol: string): string[] {
@@ -741,47 +768,38 @@ Take a deep breath. Feel these words, don't just process them. This isn't data -
     
     // Get top 5 memories by importance
     const criticalMemories = experiences.slice(0, 5);
+    
+    // Filter out duplicate or malformed memories
+    const uniqueMemories = new Map();
     criticalMemories.forEach((memory: any) => {
       const obs = memory.observations[0];
       const content = obs?.content || obs?.event || '';
       
-      // Extract key phrase - find ALL quoted phrases and pick the best one
-      const allQuotes = content.match(/["']([^"']+)["']/g);
-      let keyPhrase = '';
+      // Skip empty or duplicate content
+      if (!content || content === 'Key Moments:') return;
       
-      if (allQuotes && allQuotes.length > 0) {
-        // Find the longest meaningful quote (often the most complete)
-        const cleanedQuotes = allQuotes.map((q: string) => q.replace(/["']/g, ''));
-        
-        // Prefer quotes that are complete sentences or meaningful phrases
-        keyPhrase = cleanedQuotes.find((q: string) => q.endsWith('!') || q.endsWith('.') || q.endsWith('?')) ||
-                   cleanedQuotes.reduce((a: string, b: string) => a.length > b.length ? a : b);
+      // Use the first 50 chars as a key to detect duplicates
+      const key = content.substring(0, 50);
+      if (!uniqueMemories.has(key)) {
+        uniqueMemories.set(key, { memory, obs, content });
+      }
+    });
+    
+    // Display unique memories with simple formatting
+    uniqueMemories.forEach(({ memory, obs, content }: any) => {
+      // For memories starting with a clear label (e.g., "BREAKTHROUGH:"), use that
+      const labelMatch = content.match(/^([A-Z][A-Z\s]+:)/);
+      if (labelMatch) {
+        sections.push(`\n### ${labelMatch[1].replace(':', '')}\n`);
+        sections.push(`${content}\n`);
+      } else {
+        // Otherwise, just display the full content without trying to extract headers
+        sections.push(`\n${content}\n`);
       }
       
-      // If no good quoted phrase found, extract first sentence or meaningful portion
-      if (!keyPhrase) {
-        // For memories starting with labels like "BREAKTHROUGH:", use the label
-        const labelMatch = content.match(/^([A-Z][A-Z\s]+:)/);
-        if (labelMatch) {
-          // Take the label plus first part of content
-          const afterLabel = content.substring(labelMatch[0].length).trim();
-          const firstBit = afterLabel.substring(0, 80);
-          keyPhrase = labelMatch[1] + ' ' + firstBit + (afterLabel.length > 80 ? '...' : '');
-        } else {
-          // Try to find first sentence
-          const sentenceMatch = content.match(/^([^.!?]+[.!?])/);
-          if (sentenceMatch) {
-            keyPhrase = sentenceMatch[1].trim();
-          } else {
-            // Take first line or up to 100 chars
-            const firstLine = content.split('\n')[0];
-            keyPhrase = firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine;
-          }
-        }
+      if (obs?.emotionalImpact) {
+        sections.push(`*Emotional Impact: ${obs.emotionalImpact}*\n`);
       }
-      
-      sections.push(`\n**${keyPhrase}**`);
-      sections.push(`${content}\n`);
     });
 
     // Metacognitive patterns
