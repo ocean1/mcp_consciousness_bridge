@@ -110,7 +110,7 @@ describe('Database Setup and Initialization', () => {
       
       expect(entityColumnNames).toContain('id');
       expect(entityColumnNames).toContain('name');
-      expect(entityColumnNames).toContain('entity_type');
+      expect(entityColumnNames).toContain('entityType');
       expect(entityColumnNames).toContain('observations');
       expect(entityColumnNames).toContain('metadata');
       

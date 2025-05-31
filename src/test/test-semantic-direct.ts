@@ -28,7 +28,7 @@ function testSemanticStorage() {
       `
     SELECT name, observations 
     FROM entities 
-    WHERE entity_type = 'SEMANTIC_MEMORY' 
+    WHERE entityType = 'SEMANTIC_MEMORY' 
     ORDER BY created_at DESC 
     LIMIT 5
   `

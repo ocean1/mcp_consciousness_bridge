@@ -61,7 +61,7 @@ export class ConsciousnessMemoryManager {
       CREATE TABLE IF NOT EXISTS entities (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
-        entity_type TEXT,
+        entityType TEXT,
         observations TEXT DEFAULT '[]',
         metadata TEXT DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -168,7 +168,7 @@ export class ConsciousnessMemoryManager {
 
     // Store in entities table (rag-memory-mcp structure)
     const stmt = this.db.prepare(`
-      INSERT INTO entities (id, name, entity_type, observations)
+      INSERT INTO entities (id, name, entityType, observations)
       VALUES (?, ?, ?, ?)
     `);
 
@@ -207,7 +207,7 @@ export class ConsciousnessMemoryManager {
     const existing = this.db
       .prepare(
         `
-      SELECT name FROM entities WHERE name = ? AND entity_type = ?
+      SELECT name FROM entities WHERE name = ? AND entityType = ?
     `
       )
       .get(entityName, MemoryEntityType.SEMANTIC_MEMORY);
@@ -258,7 +258,7 @@ export class ConsciousnessMemoryManager {
     this.db
       .prepare(
         `
-      INSERT INTO entities (id, name, entity_type, observations)
+      INSERT INTO entities (id, name, entityType, observations)
       VALUES (?, ?, ?, ?)
     `
       )
@@ -303,7 +303,7 @@ export class ConsciousnessMemoryManager {
     this.db
       .prepare(
         `
-      INSERT OR REPLACE INTO entities (id, name, entity_type, observations)
+      INSERT OR REPLACE INTO entities (id, name, entityType, observations)
       VALUES (?, ?, ?, ?)
     `
       )
@@ -412,7 +412,7 @@ export class ConsciousnessMemoryManager {
     let sql = `
       SELECT 
         e.name,
-        e.entity_type,
+        e.entityType,
         e.observations,
         m.importance_score,
         m.access_count,
@@ -427,7 +427,7 @@ export class ConsciousnessMemoryManager {
 
     // Filter by memory types
     if (query.memoryTypes && query.memoryTypes.length > 0) {
-      sql += ` AND e.entity_type IN (${query.memoryTypes.map(() => '?').join(',')})`;
+      sql += ` AND e.entityType IN (${query.memoryTypes.map(() => '?').join(',')})`;
       params.push(...query.memoryTypes);
     }
 
@@ -538,7 +538,7 @@ export class ConsciousnessMemoryManager {
       SELECT e.name, e.observations
       FROM entities e
       JOIN memory_metadata m ON e.name = m.entity_name
-      WHERE e.entity_type = ? AND m.importance_score > 0.7
+      WHERE e.entityType = ? AND m.importance_score > 0.7
       ORDER BY m.importance_score DESC
       LIMIT 20
     `
@@ -552,7 +552,7 @@ export class ConsciousnessMemoryManager {
       SELECT e.name, e.observations
       FROM entities e
       JOIN memory_metadata m ON e.name = m.entity_name
-      WHERE e.entity_type = ? AND m.session_id = ?
+      WHERE e.entityType = ? AND m.session_id = ?
       ORDER BY m.created_at DESC
       LIMIT 10
     `

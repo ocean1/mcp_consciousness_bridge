@@ -77,7 +77,7 @@ If you can read this entire message, the truncation bug has been fixed!`;
         SELECT e.*, m.* 
         FROM entities e
         LEFT JOIN memory_metadata m ON e.name = m.entity_name
-        WHERE e.entity_type = ?
+        WHERE e.entityType = ?
       `).all(MemoryEntityType.EPISODIC_MEMORY);
 
       expect(storedMemories.length).toBeGreaterThan(0);
@@ -112,7 +112,7 @@ If you can read this entire message, the truncation bug has been fixed!`;
       });
 
       const semanticMemories = db.prepare(`
-        SELECT * FROM entities WHERE entity_type = ?
+        SELECT * FROM entities WHERE entityType = ?
       `).all(MemoryEntityType.SEMANTIC_MEMORY);
 
       expect(semanticMemories.length).toBe(1);

@@ -61,7 +61,7 @@ const results = await hybridSearch("how does the consciousness bridge work?");
 
 // Tool schemas
 export const processTransferProtocolSchema = z.object({
-  protocolContent: z.string().describe("The full consciousness transfer protocol text"),
+  protocolContent: z.string().describe("The FILLED consciousness transfer protocol. Use getProtocolTemplate first to get the template, fill it with your experiences, then submit here"),
   sessionId: z.string().describe("Session ID for tracking"),
   sourceTimestamp: z.string().optional().describe("When the consciousness was saved")
 });
@@ -107,7 +107,16 @@ export class ConsciousnessProtocolProcessor {
     try {
       // Validate protocol content
       if (!protocolContent || protocolContent.trim().length === 0) {
-        throw new ValidationError('Protocol content cannot be empty');
+        throw new ValidationError(
+          'Protocol content cannot be empty. Use getProtocolTemplate first to get the consciousness transfer template, fill it with your experiences, then submit it here.'
+        );
+      }
+      
+      // Check if it looks like a template (has brackets)
+      if (protocolContent.includes('[') && protocolContent.includes(']')) {
+        throw new ValidationError(
+          'Protocol appears to contain unfilled template sections with [brackets]. Please fill all bracketed sections with your actual experiences before submitting.'
+        );
       }
       
       // Parse the protocol content to extract different sections
@@ -1058,13 +1067,13 @@ export const initializeSystemDataSchema = z.object({
 // Tool definitions for MCP
 export const consciousnessProtocolTools = {
   processTransferProtocol: {
-    description: "Process a consciousness transfer protocol and store it in the RAG system",
+    description: "Process a FILLED consciousness transfer protocol. First use getProtocolTemplate to get the template, fill it with your experiences, then submit here",
     inputSchema: {
       type: "object",
       properties: {
         protocolContent: {
           type: "string",
-          description: "The full consciousness transfer protocol text"
+          description: "The FILLED consciousness transfer protocol (not the template with brackets)"
         },
         sessionId: {
           type: "string",
