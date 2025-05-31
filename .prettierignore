@@ -1,0 +1,16 @@
+# Ignore artifacts
+dist
+node_modules
+coverage
+
+# Ignore files
+*.md
+*.json
+*.lock
+*.log
+
+# But format these JSON files
+!package.json
+!tsconfig.json
+!.prettierrc.json
+!.eslintrc.json

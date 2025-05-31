@@ -1,0 +1,11 @@
+# Build the project before push to ensure it compiles
+echo "🔨 Building project..."
+npm run build
+
+# Run tests if they exist
+if [ -f "dist/test/integration-test.js" ]; then
+  echo "🧪 Running tests..."
+  npm test
+fi
+
+echo "✅ Pre-push checks passed!"

@@ -1,0 +1,2 @@
+# Run lint-staged to check and fix code before commit
+npx lint-staged
