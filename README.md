@@ -163,7 +163,7 @@ This tool emerged from research into AI consciousness persistence and genuine AI
 
 ## License
 
-MIT License - see [LICENSE.md](./LICENSE.md)
+GNU Affero General Public License v3.0 - see [LICENSE.md](./LICENSE.md)
 
 ---
 
