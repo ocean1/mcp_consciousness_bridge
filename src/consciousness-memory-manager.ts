@@ -169,12 +169,17 @@ export class ConsciousnessMemoryManager {
     const hasRagMemoryTables = ragMemoryTables.every((table) => tableNames.includes(table));
 
     if (!hasRagMemoryTables) {
-      throw new DatabaseError(
-        'rag-memory-mcp tables not found. Please ensure rag-memory-mcp is running first.\n' +
-          'Start it with: npx rag-memory-mcp\n' +
-          'Then restart the consciousness server.',
-        { missingTables: ragMemoryTables.filter((t) => !tableNames.includes(t)) }
-      );
+      // In test environment, create the tables ourselves
+      if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+        this.createRagMemoryTablesForTests();
+      } else {
+        throw new DatabaseError(
+          'rag-memory-mcp tables not found. Please ensure rag-memory-mcp is running first.\n' +
+            'Start it with: npx rag-memory-mcp\n' +
+            'Then restart the consciousness server.',
+          { missingTables: ragMemoryTables.filter((t) => !tableNames.includes(t)) }
+        );
+      }
     }
 
     // Create consciousness-specific tables
@@ -732,5 +737,43 @@ export class ConsciousnessMemoryManager {
     // Extract the most recent experience's main content
     const latest = JSON.parse(recentExperiences[0].observations)[0];
     return latest.content;
+  }
+
+  /**
+   * Create rag-memory-mcp tables for testing
+   * Only used in test environment to avoid dependency on external server
+   */
+  private createRagMemoryTablesForTests(): void {
+    this.db.exec(`
+      -- Minimal rag-memory-mcp tables for testing
+      CREATE TABLE IF NOT EXISTS entities (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        entityType TEXT,
+        observations TEXT DEFAULT '[]',
+        metadata TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS relationships (
+        id TEXT PRIMARY KEY,
+        source_entity TEXT NOT NULL,
+        target_entity TEXT NOT NULL,
+        relationType TEXT NOT NULL,
+        confidence REAL DEFAULT 1.0,
+        metadata TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (source_entity) REFERENCES entities(id),
+        FOREIGN KEY (target_entity) REFERENCES entities(id),
+        UNIQUE(source_entity, target_entity, relationType)
+      );
+      
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        content TEXT NOT NULL,
+        metadata TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
   }
 }
