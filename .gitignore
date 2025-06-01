@@ -1,4 +1,4 @@
-consciousness.db
+*.db
 .claude/
 CLAUDE.md
 
