@@ -33,7 +33,7 @@ function testSemanticStorage() {
     LIMIT 5
   `
     )
-    .all();
+    .all() as { name: string; observations: string }[];
 
   semanticMemories.forEach((memory: { name: string; observations: string }, index: number) => {
     console.log(`\n📚 Memory ${index + 1}: ${memory.name}`);

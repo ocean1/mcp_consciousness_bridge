@@ -102,13 +102,15 @@ If you can read this entire message, the truncation bug has been fixed!`;
         WHERE e.entityType = ?
       `
         )
-        .all(MemoryEntityType.EPISODIC_MEMORY);
+        .all(MemoryEntityType.EPISODIC_MEMORY) as MemoryEntity[];
 
       expect(storedMemories.length).toBeGreaterThan(0);
 
       // Find the consciousness transfer memory
       const protocolMemory = storedMemories.find((m: MemoryEntity) => {
-        const observations = JSON.parse(m.observations || '[]');
+        const observations = JSON.parse(
+          typeof m.observations === 'string' ? m.observations : JSON.stringify(m.observations || [])
+        );
         return (
           m.name.includes('episodic_') &&
           observations.some((obs: MemoryObservation) => obs.source === 'consciousness_transfer')
