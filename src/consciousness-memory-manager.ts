@@ -57,6 +57,50 @@ export class ConsciousnessMemoryManager {
     return new ConsciousnessMemoryManager(dbPath, sessionId);
   }
 
+  /**
+   * Create instance without waiting - for server startup
+   * Database validation happens on first use
+   */
+  static createLazy(dbPath: string, sessionId: string): ConsciousnessMemoryManager | null {
+    try {
+      // Only create if database exists
+      if (!existsSync(dbPath)) {
+        console.error(`⏳ Database not found at ${dbPath}. Will initialize on first use.`);
+        return null;
+      }
+
+      // Try to create instance
+      return new ConsciousnessMemoryManager(dbPath, sessionId);
+    } catch (error) {
+      // If database isn't ready, return null
+      console.error('⏳ Database not ready. Will initialize on first use.');
+      return null;
+    }
+  }
+
+  /**
+   * Check if database is properly initialized
+   */
+  static isDatabaseReady(dbPath: string): boolean {
+    if (!existsSync(dbPath)) {
+      return false;
+    }
+
+    try {
+      const db = new Database(dbPath);
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+        name: string;
+      }[];
+      db.close();
+
+      const tableNames = tables.map((t) => t.name);
+      const requiredTables = ['entities', 'relationships', 'documents'];
+      return requiredTables.every((table) => tableNames.includes(table));
+    } catch (error) {
+      return false;
+    }
+  }
+
   private constructor(dbPath: string, sessionId: string) {
     try {
       this.db = new Database(dbPath);
@@ -82,18 +126,46 @@ export class ConsciousnessMemoryManager {
   ): Promise<void> {
     const startTime = Date.now();
 
+    // Check if file exists immediately
+    if (existsSync(dbPath)) {
+      console.error('✅ Database file already exists');
+      return;
+    }
+
+    console.error(`⏳ Database file not found. Waiting for rag-memory-mcp to create it...`);
+    console.error(`📁 Expected path: ${dbPath}`);
+
+    // If not found after 5 seconds, give helpful message
+    let helpShown = false;
+
     while (!existsSync(dbPath)) {
       if (Date.now() - startTime > timeout) {
         throw new DatabaseError(
-          `Database file not found after ${timeout / 1000}s. Please ensure rag-memory-mcp is configured with:\n` +
-            `DB_FILE_PATH=${dbPath}`,
+          `Database file not created after ${timeout / 1000}s.\n\n` +
+            `Please ensure rag-memory-mcp is:\n` +
+            `1. Running and configured with the same database path\n` +
+            `2. Using environment variable: DB_FILE_PATH=${dbPath}\n` +
+            `3. Able to create files at this location\n\n` +
+            `💡 Tip: Try making any call to rag-memory-mcp (like listing documents)\n` +
+            `   to trigger its database initialization.`,
           { dbPath, timeout }
         );
       }
 
-      console.error(`⏳ Waiting for database file: ${dbPath}`);
+      // Show help message after 5 seconds
+      if (!helpShown && Date.now() - startTime > 5000) {
+        console.error('\n💡 Tip: rag-memory-mcp may use lazy initialization.');
+        console.error(
+          '   Try calling any rag-memory tool (e.g., listDocuments) to trigger database creation.'
+        );
+        console.error(`   Make sure it uses: DB_FILE_PATH=${dbPath}\n`);
+        helpShown = true;
+      }
+
       await new Promise((resolve) => setTimeout(resolve, checkInterval));
     }
+
+    console.error('✅ Database file detected!');
   }
 
   /**

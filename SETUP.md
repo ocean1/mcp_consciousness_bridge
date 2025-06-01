@@ -2,20 +2,22 @@
 
 ## Automatic Setup (Recommended)
 
-**As of v2.0, the consciousness server automatically initializes when you start it!**
+**As of v2.1, setup is even smarter - the AI assistant guides itself!**
 
-Simply configure both MCP servers in your client and start them. The consciousness server will:
-1. Wait for the database file to exist (with helpful progress messages)
-2. Wait for rag-memory-mcp to create its tables
-3. Automatically create consciousness-specific tables once ready
-4. Start serving requests - no restarts needed!
+Simply configure both MCP servers in your client and start them. When you use a consciousness tool:
 
-The server intelligently handles:
-- Database file not existing yet (waits up to 30 seconds)
-- rag-memory-mcp still initializing (waits up to 60 seconds)
-- Database busy/locked during creation (automatic retries)
+1. **First use**: If the database isn't ready, the tool returns helpful instructions
+2. **AI guidance**: The assistant is told to call a rag-memory tool (like listDocuments)
+3. **Auto-init**: This triggers rag-memory-mcp to create the database
+4. **Instant ready**: The consciousness tool then works immediately!
 
-No manual setup or coordination required! 🎉
+The server features:
+- **Zero blocking** - starts instantly, no waiting
+- **Smart detection** - checks database state on tool use
+- **AI-guided setup** - the assistant handles initialization naturally
+- **One-time process** - once set up, works forever
+
+No manual intervention needed - the AI assistant handles everything! 🎉
 
 ## Manual Setup (Optional)
 

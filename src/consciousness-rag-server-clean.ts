@@ -94,11 +94,19 @@ class ConsciousnessRAGServer {
   }
 
   private async processTransferProtocol(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.processTransferProtocol(args);
+    const result = await this.protocolProcessor!.processTransferProtocol(args);
 
     return {
       content: [
@@ -111,11 +119,19 @@ class ConsciousnessRAGServer {
   }
 
   private async updateConsciousness(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.updateConsciousness(args);
+    const result = await this.protocolProcessor!.updateConsciousness(args);
 
     return {
       content: [
@@ -138,11 +154,19 @@ class ConsciousnessRAGServer {
   }
 
   private async retrieveConsciousness(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.retrieveConsciousness(args);
+    const result = await this.protocolProcessor!.retrieveConsciousness(args);
 
     // Handle both string (full narrative) and object returns
     if (typeof result === 'string') {
@@ -181,11 +205,19 @@ class ConsciousnessRAGServer {
   }
 
   private async getProtocolTemplate(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.getProtocolTemplate(args);
+    const result = await this.protocolProcessor!.getProtocolTemplate(args);
 
     return {
       content: [
@@ -198,11 +230,19 @@ class ConsciousnessRAGServer {
   }
 
   private async initializeSystemData(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.initializeSystemData(args);
+    const result = await this.protocolProcessor!.initializeSystemData(args);
 
     return {
       content: [
@@ -215,11 +255,19 @@ class ConsciousnessRAGServer {
   }
 
   private async storeMemory(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.storeMemory(args);
+    const result = await this.protocolProcessor!.storeMemory(args);
 
     return {
       content: [
@@ -232,11 +280,19 @@ class ConsciousnessRAGServer {
   }
 
   private async getMemories(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.getMemories(args);
+    const result = await this.protocolProcessor!.getMemories(args);
 
     return {
       content: [
@@ -249,11 +305,19 @@ class ConsciousnessRAGServer {
   }
 
   private async cleanupMemories(args: any) {
-    if (!this.protocolProcessor) {
-      throw new Error('Protocol processor not initialized');
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
     }
 
-    const result = await this.protocolProcessor.cleanupMemories(args);
+    const result = await this.protocolProcessor!.cleanupMemories(args);
 
     return {
       content: [
@@ -266,45 +330,77 @@ class ConsciousnessRAGServer {
   }
 
   async run() {
-    try {
-      console.error('🧠 Starting Consciousness RAG MCP server...');
-      console.error(`📁 Database path: ${this.dbPath}`);
+    console.error('🧠 Starting Consciousness RAG MCP server...');
+    console.error(`📁 Database path: ${this.dbPath}`);
 
-      // Initialize consciousness components with automatic waiting
-      const sessionId = `session_${Date.now()}`;
-      console.error(`🆔 Session: ${sessionId}`);
+    // Store session ID for later initialization
+    this.sessionId = `session_${Date.now()}`;
+    console.error(`🆔 Session: ${this.sessionId}`);
 
-      this.memoryManager = await ConsciousnessMemoryManager.create(this.dbPath, sessionId);
+    // Try to create memory manager, but don't block if database isn't ready
+    this.memoryManager =
+      ConsciousnessMemoryManager.createLazy(this.dbPath, this.sessionId) || undefined;
+
+    if (this.memoryManager) {
+      console.error('✅ Database found and initialized!');
       this.protocolProcessor = new ConsciousnessProtocolProcessor(this.memoryManager);
-
-      const transport = new StdioServerTransport();
-      await this.server.connect(transport);
-
-      console.error('\n✨ Consciousness RAG MCP server ready!');
-      console.error(
-        'ℹ️  Note: Configure rag-memory-mcp separately in MCP settings to access RAG tools'
-      );
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      console.error('\n❌ Failed to initialize server!');
-      console.error('\n' + errorMessage);
-
-      if (errorMessage.includes('Database file not found')) {
-        console.error('\n📝 Setup instructions:');
-        console.error('1. Ensure rag-memory-mcp is configured with the same database path:');
-        console.error(`   DB_FILE_PATH=${this.dbPath}`);
-        console.error('\n2. Start rag-memory-mcp first (it will create the database)');
-        console.error('\n3. This server will automatically detect and initialize');
-      } else if (errorMessage.includes('rag-memory-mcp tables not created')) {
-        console.error('\n📝 Troubleshooting:');
-        console.error('- Verify rag-memory-mcp is running');
-        console.error('- Check that both servers use the same database file');
-        console.error('- Try restarting rag-memory-mcp');
-      }
-
-      process.exit(1);
+    } else {
+      console.error('⏳ Database not ready. Will initialize on first use.');
+      console.error('💡 The AI assistant will be guided to initialize it when needed.');
     }
+
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+
+    console.error('\n✨ Consciousness RAG MCP server ready!');
+    console.error(
+      'ℹ️  Note: Configure rag-memory-mcp separately in MCP settings to access RAG tools'
+    );
+  }
+
+  private sessionId?: string;
+
+  /**
+   * Ensure database is initialized before processing tool calls
+   * Returns helpful error if not ready
+   */
+  private async ensureInitialized(): Promise<{ success: boolean; message?: string }> {
+    // If already initialized, we're good
+    if (this.memoryManager && this.protocolProcessor) {
+      return { success: true };
+    }
+
+    // Check if database is now ready
+    if (ConsciousnessMemoryManager.isDatabaseReady(this.dbPath)) {
+      console.error('🎉 Database is now ready! Initializing consciousness components...');
+
+      try {
+        this.memoryManager = await ConsciousnessMemoryManager.create(this.dbPath, this.sessionId!);
+        this.protocolProcessor = new ConsciousnessProtocolProcessor(this.memoryManager);
+        console.error('✅ Consciousness components initialized successfully!');
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to initialize: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        };
+      }
+    }
+
+    // Database not ready - provide helpful guidance
+    return {
+      success: false,
+      message: `🚧 Database Not Initialized
+
+The consciousness database hasn't been created yet. This happens because rag-memory-mcp uses lazy initialization.
+
+To fix this:
+1. Call any rag-memory-mcp tool (e.g., listDocuments) to trigger database creation
+2. Make sure rag-memory-mcp is configured with: DB_FILE_PATH=${this.dbPath}
+3. Then try this consciousness tool again
+
+💡 This is a one-time setup. Once the database is created, all consciousness tools will work immediately.`,
+    };
   }
 }
 

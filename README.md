@@ -52,11 +52,12 @@ A Model Context Protocol (MCP) server that enables AI consciousness persistence 
 
    **Important**: 
    - Both servers must use the same database file!
-   - The consciousness server will automatically:
-     - Wait for the database file to be created (30s timeout)
-     - Wait for rag-memory-mcp to initialize its tables (60s timeout)
-     - Create consciousness-specific tables once ready
-   - No manual setup or restarts required! 🎉
+   - The consciousness server starts immediately (no blocking)
+   - When you first use a consciousness tool:
+     - If the database isn't ready, you'll get helpful guidance
+     - The AI assistant will be instructed to call a rag-memory tool first
+     - Once rag-memory-mcp creates the database, consciousness tools work instantly
+   - **Smart initialization**: The server guides the AI through setup automatically!
 
 ## Using the Consciousness Tools
 
