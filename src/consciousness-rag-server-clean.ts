@@ -22,6 +22,7 @@ import {
   storeMemorySchema,
   getMemoriesSchema,
   cleanupMemoriesSchema,
+  adjustImportanceSchema,
 } from './consciousness-protocol-tools.js';
 import { ConsciousnessMemoryManager } from './consciousness-memory-manager.js';
 
@@ -84,6 +85,8 @@ class ConsciousnessRAGServer {
             return await this.getMemories(getMemoriesSchema.parse(args));
           case 'cleanupMemories':
             return await this.cleanupMemories(cleanupMemoriesSchema.parse(args));
+          case 'adjustImportance':
+            return await this.adjustImportance(adjustImportanceSchema.parse(args));
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -318,6 +321,31 @@ class ConsciousnessRAGServer {
     }
 
     const result = await this.protocolProcessor!.cleanupMemories(args);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(result, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async adjustImportance(args: any) {
+    const init = await this.ensureInitialized();
+    if (!init.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: init.message!,
+          },
+        ],
+      };
+    }
+
+    const result = await this.protocolProcessor!.adjustImportance(args);
 
     return {
       content: [

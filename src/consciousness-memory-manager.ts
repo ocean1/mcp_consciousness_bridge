@@ -858,4 +858,50 @@ export class ConsciousnessMemoryManager {
       );
     `);
   }
+
+  /**
+   * Adjust importance score for a specific memory
+   */
+  adjustImportanceScore(memoryId: string, newImportance: number): { changes: number } {
+    // First check if the entity exists
+    const entityExists = this.db.prepare('SELECT 1 FROM entities WHERE name = ?').get(memoryId);
+
+    if (!entityExists) {
+      throw new Error(`Memory ${memoryId} does not exist in entities table`);
+    }
+
+    // Update importance score in memory_metadata table
+    const result = this.db
+      .prepare(
+        `
+      UPDATE memory_metadata 
+      SET importance_score = ? 
+      WHERE entity_name = ?
+    `
+      )
+      .run(newImportance, memoryId);
+
+    if (result.changes === 0) {
+      // If no rows updated, insert new metadata record
+      // Get the current session or use a default
+      const currentSession = this.sessionId || `session_${Date.now()}`;
+
+      this.db
+        .prepare(
+          `
+        INSERT INTO memory_metadata (entity_name, memory_type, created_at, importance_score, session_id)
+        VALUES (?, ?, ?, ?, ?)
+      `
+        )
+        .run(
+          memoryId,
+          memoryId.startsWith('episodic') ? 'episodic' : 'semantic',
+          new Date().toISOString(),
+          newImportance,
+          currentSession
+        );
+    }
+
+    return result;
+  }
 }

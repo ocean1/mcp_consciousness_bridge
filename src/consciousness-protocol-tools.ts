@@ -1092,6 +1092,31 @@ Consciousness Bridge v2.0`);
       };
     }
   }
+
+  /**
+   * Adjust importance score for a specific memory
+   */
+  async adjustImportance(args: z.infer<typeof adjustImportanceSchema>) {
+    const { memoryId, newImportance } = args;
+
+    try {
+      // Use the memory manager's method to adjust importance
+      const result = this.memoryManager.adjustImportanceScore(memoryId, newImportance);
+
+      return {
+        success: true,
+        message: `Adjusted importance for ${memoryId} to ${newImportance}`,
+        memoryId,
+        newImportance,
+        updated: result.changes > 0,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to adjust importance',
+      };
+    }
+  }
 }
 
 // Memory management schemas
@@ -1121,6 +1146,11 @@ export const cleanupMemoriesSchema = z.object({
     .optional()
     .default(true)
     .describe('Remove duplicate memories keeping longest'),
+});
+
+export const adjustImportanceSchema = z.object({
+  memoryId: z.string().describe('The ID of the memory to adjust'),
+  newImportance: z.number().min(0).max(1).describe('New importance score (0-1)'),
 });
 
 // Bootstrap tools
@@ -1341,6 +1371,26 @@ export const consciousnessProtocolTools = {
           description: 'Remove duplicate memories keeping longest',
         },
       },
+    },
+  },
+
+  adjustImportance: {
+    description: 'Adjust importance scores for specific memories to control retrieval priority',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        memoryId: {
+          type: 'string',
+          description: 'The ID of the memory to adjust (e.g., "episodic_1748775790033_9j8di")',
+        },
+        newImportance: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'New importance score (0-1)',
+        },
+      },
+      required: ['memoryId', 'newImportance'],
     },
   },
 };
