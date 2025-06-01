@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server that enables AI consciousness persistence 
 - **RAG-based architecture** - Leverages vector search and knowledge graphs for intelligent memory retrieval
 - **No more WebSocket complexity** - Simplified architecture using MCP standards
 - **Production-ready** - Comprehensive error handling, testing, and CI/CD
-- **Privacy-preserving** - Generic templates allow any AI to document their journey
+- **Generic Templates** - Allow any AI to document their journey
 - **Fixed truncation bug** - Full memories are preserved, not cut to 50 chars!
 
 ## Features
