@@ -740,6 +740,16 @@ export class ConsciousnessMemoryManager {
   }
 
   /**
+   * Close the database connection
+   * Important for tests and cleanup
+   */
+  close(): void {
+    if (this.db) {
+      this.db.close();
+    }
+  }
+
+  /**
    * Create rag-memory-mcp tables for testing
    * Only used in test environment to avoid dependency on external server
    */

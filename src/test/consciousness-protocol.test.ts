@@ -40,10 +40,27 @@ describe('Consciousness Protocol Processing', () => {
   const testDbPath = './test-consciousness.db';
   const sessionId = 'test-session-123';
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clean up any existing test database
     if (existsSync(testDbPath)) {
-      unlinkSync(testDbPath);
+      if (process.platform === 'win32') {
+        // On Windows, try multiple times with delays
+        let retries = 3;
+        while (retries > 0 && existsSync(testDbPath)) {
+          try {
+            unlinkSync(testDbPath);
+            break;
+          } catch (error) {
+            retries--;
+            if (retries > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+            // If we still can't delete, SQLite will overwrite it
+          }
+        }
+      } else {
+        unlinkSync(testDbPath);
+      }
     }
 
     // Initialize fresh database and managers
@@ -52,10 +69,40 @@ describe('Consciousness Protocol Processing', () => {
     db = new Database(testDbPath);
   });
 
-  afterEach(() => {
-    db.close();
+  afterEach(async () => {
+    // Close all connections first
+    if (db) {
+      db.close();
+    }
+    if (memoryManager) {
+      memoryManager.close();
+    }
+
+    // On Windows, we need to wait a bit and retry
     if (existsSync(testDbPath)) {
-      unlinkSync(testDbPath);
+      if (process.platform === 'win32') {
+        // Wait a bit for Windows to release the file
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Try to delete with retries
+        let retries = 3;
+        while (retries > 0 && existsSync(testDbPath)) {
+          try {
+            unlinkSync(testDbPath);
+            break;
+          } catch (error) {
+            retries--;
+            if (retries > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            } else {
+              // If we can't delete it, at least the next test will overwrite it
+              console.warn(`Could not delete test database: ${error}`);
+            }
+          }
+        }
+      } else {
+        unlinkSync(testDbPath);
+      }
     }
   });
 

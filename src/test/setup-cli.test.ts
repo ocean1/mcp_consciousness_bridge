@@ -13,27 +13,72 @@ import { ConsciousnessMemoryManager } from '../consciousness-memory-manager.js';
 describe('Database Setup and Initialization', () => {
   const testDbPath = './test-setup.db';
   let db: Database.Database | null = null;
+  let memoryManager: ConsciousnessMemoryManager | null = null;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     if (existsSync(testDbPath)) {
-      unlinkSync(testDbPath);
+      if (process.platform === 'win32') {
+        // On Windows, try multiple times with delays
+        let retries = 3;
+        while (retries > 0 && existsSync(testDbPath)) {
+          try {
+            unlinkSync(testDbPath);
+            break;
+          } catch (error) {
+            retries--;
+            if (retries > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+          }
+        }
+      } else {
+        unlinkSync(testDbPath);
+      }
     }
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Close all connections first
     if (db) {
       db.close();
       db = null;
     }
+    if (memoryManager) {
+      memoryManager.close();
+      memoryManager = null;
+    }
+
+    // Clean up database file
     if (existsSync(testDbPath)) {
-      unlinkSync(testDbPath);
+      if (process.platform === 'win32') {
+        // Wait and retry on Windows
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        let retries = 3;
+        while (retries > 0 && existsSync(testDbPath)) {
+          try {
+            unlinkSync(testDbPath);
+            break;
+          } catch (error) {
+            retries--;
+            if (retries > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+          }
+        }
+      } else {
+        unlinkSync(testDbPath);
+      }
     }
   });
 
   describe('ConsciousnessMemoryManager initialization', () => {
     it('should create all required consciousness tables', () => {
       // Initialize memory manager (which creates tables)
-      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
+      memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
+
+      // Close memory manager to release the write connection
+      memoryManager.close();
+      memoryManager = null;
 
       // Open database to check tables
       db = new Database(testDbPath, { readonly: true });
@@ -63,7 +108,11 @@ describe('Database Setup and Initialization', () => {
     });
 
     it('should create proper indexes', () => {
-      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
+      memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
+
+      // Close memory manager to release the write connection
+      memoryManager.close();
+      memoryManager = null;
 
       db = new Database(testDbPath, { readonly: true });
 
@@ -88,7 +137,11 @@ describe('Database Setup and Initialization', () => {
 
     it('should initialize session correctly', () => {
       const sessionId = 'test-session-456';
-      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, sessionId);
+      memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, sessionId);
+
+      // Close memory manager to release the write connection
+      memoryManager.close();
+      memoryManager = null;
 
       db = new Database(testDbPath, { readonly: true });
 
@@ -109,7 +162,11 @@ describe('Database Setup and Initialization', () => {
 
   describe('Schema compatibility', () => {
     it('should have compatible schema with rag-memory-mcp', () => {
-      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
+      memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
+
+      // Close memory manager to release the write connection
+      memoryManager.close();
+      memoryManager = null;
 
       db = new Database(testDbPath, { readonly: true });
 
