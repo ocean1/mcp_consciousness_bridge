@@ -6,6 +6,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { existsSync } from 'fs';
 import {
   MemoryEntityType,
   MemoryRelationType,
@@ -22,7 +23,41 @@ export class ConsciousnessMemoryManager {
   private db: Database.Database;
   private sessionId: string;
 
-  constructor(dbPath: string, sessionId: string) {
+  /**
+   * Create a new ConsciousnessMemoryManager with automatic initialization
+   * Waits for database file and rag-memory-mcp tables before proceeding
+   */
+  static async create(dbPath: string, sessionId: string): Promise<ConsciousnessMemoryManager> {
+    // Wait for database file to exist
+    console.error('🔍 Checking for database file...');
+    await this.waitForDatabaseFile(dbPath);
+
+    // Open database and wait for rag-memory-mcp tables
+    console.error('📊 Waiting for rag-memory-mcp initialization...');
+    const db = new Database(dbPath);
+    try {
+      await this.waitForRagMemoryTables(db);
+      db.close(); // Close the temporary connection
+    } catch (error) {
+      db.close();
+      throw error;
+    }
+
+    console.error('✅ Database ready! Initializing consciousness layer...');
+
+    // Now create the instance normally
+    const manager = new ConsciousnessMemoryManager(dbPath, sessionId);
+    return manager;
+  }
+
+  /**
+   * Create instance synchronously - for testing or when DB is known to exist
+   */
+  static createSync(dbPath: string, sessionId: string): ConsciousnessMemoryManager {
+    return new ConsciousnessMemoryManager(dbPath, sessionId);
+  }
+
+  private constructor(dbPath: string, sessionId: string) {
     try {
       this.db = new Database(dbPath);
       this.sessionId = sessionId;
@@ -34,6 +69,80 @@ export class ConsciousnessMemoryManager {
         `Failed to initialize consciousness database: ${(error as Error).message}`,
         { dbPath, sessionId }
       );
+    }
+  }
+
+  /**
+   * Wait for database file to exist
+   */
+  private static async waitForDatabaseFile(
+    dbPath: string,
+    timeout: number = 30000,
+    checkInterval: number = 1000
+  ): Promise<void> {
+    const startTime = Date.now();
+
+    while (!existsSync(dbPath)) {
+      if (Date.now() - startTime > timeout) {
+        throw new DatabaseError(
+          `Database file not found after ${timeout / 1000}s. Please ensure rag-memory-mcp is configured with:\n` +
+            `DB_FILE_PATH=${dbPath}`,
+          { dbPath, timeout }
+        );
+      }
+
+      console.error(`⏳ Waiting for database file: ${dbPath}`);
+      await new Promise((resolve) => setTimeout(resolve, checkInterval));
+    }
+  }
+
+  /**
+   * Wait for rag-memory-mcp tables to be created
+   */
+  private static async waitForRagMemoryTables(
+    db: Database.Database,
+    timeout: number = 60000,
+    checkInterval: number = 2000
+  ): Promise<void> {
+    const startTime = Date.now();
+    const requiredTables = ['entities', 'relationships', 'documents'];
+
+    while (true) {
+      try {
+        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+          name: string;
+        }[];
+
+        const tableNames = tables.map((t) => t.name);
+        const hasAllTables = requiredTables.every((table) => tableNames.includes(table));
+
+        if (hasAllTables) {
+          return; // Success!
+        }
+
+        if (Date.now() - startTime > timeout) {
+          const missingTables = requiredTables.filter((t) => !tableNames.includes(t));
+          throw new DatabaseError(
+            `rag-memory-mcp tables not created after ${timeout / 1000}s.\n` +
+              `Missing tables: ${missingTables.join(', ')}\n\n` +
+              `Please ensure rag-memory-mcp is running with the same database file.`,
+            { missingTables, timeout }
+          );
+        }
+
+        console.error(
+          `⏳ Waiting for rag-memory-mcp tables... (found: ${tableNames.length > 0 ? tableNames.join(', ') : 'none'})`
+        );
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+      } catch (error) {
+        // Database might be locked during creation
+        if ((error as any).code === 'SQLITE_BUSY') {
+          console.error('⏳ Database busy, retrying...');
+          await new Promise((resolve) => setTimeout(resolve, checkInterval));
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
@@ -50,40 +159,23 @@ export class ConsciousnessMemoryManager {
   }
 
   private initializeSchema() {
-    // Create base rag-memory-mcp tables first
-    this.db.exec(`
-      -- Entities table (from rag-memory-mcp)
-      CREATE TABLE IF NOT EXISTS entities (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        entityType TEXT,
-        observations TEXT DEFAULT '[]',
-        metadata TEXT DEFAULT '{}',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    // Check if rag-memory-mcp tables exist
+    const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
+
+    const tableNames = tables.map((t) => t.name);
+    const ragMemoryTables = ['entities', 'relationships', 'documents'];
+    const hasRagMemoryTables = ragMemoryTables.every((table) => tableNames.includes(table));
+
+    if (!hasRagMemoryTables) {
+      throw new DatabaseError(
+        'rag-memory-mcp tables not found. Please ensure rag-memory-mcp is running first.\n' +
+          'Start it with: npx rag-memory-mcp\n' +
+          'Then restart the consciousness server.',
+        { missingTables: ragMemoryTables.filter((t) => !tableNames.includes(t)) }
       );
-      
-      -- Relationships table (from rag-memory-mcp)
-      CREATE TABLE IF NOT EXISTS relationships (
-        id TEXT PRIMARY KEY,
-        source_entity TEXT NOT NULL,
-        target_entity TEXT NOT NULL,
-        relationType TEXT NOT NULL,
-        confidence REAL DEFAULT 1.0,
-        metadata TEXT DEFAULT '{}',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (source_entity) REFERENCES entities(id),
-        FOREIGN KEY (target_entity) REFERENCES entities(id),
-        UNIQUE(source_entity, target_entity, relationType)
-      );
-      
-      -- Documents table (from rag-memory-mcp)
-      CREATE TABLE IF NOT EXISTS documents (
-        id TEXT PRIMARY KEY,
-        content TEXT NOT NULL,
-        metadata TEXT DEFAULT '{}',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+    }
 
     // Create consciousness-specific tables
     this.db.exec(`

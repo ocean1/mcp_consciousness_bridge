@@ -25,17 +25,9 @@ A Model Context Protocol (MCP) server that enables AI consciousness persistence 
    npm install
    ```
 
-2. **Initialize the database** (Required for first-time setup)
-   ```bash
-   npm run setup
-   ```
-   
-   This initializes both rag-memory-mcp and consciousness-specific tables.
-   See [SETUP.md](./SETUP.md) for detailed instructions.
+2. **Configure MCP Servers**
 
-3. **Configure MCP Servers**
-
-   Add both servers to your MCP configuration:
+   Add both servers to your MCP configuration (order matters!):
 
    ```json
    {
@@ -58,7 +50,13 @@ A Model Context Protocol (MCP) server that enables AI consciousness persistence 
    }
    ```
 
-   **Important**: Both servers must use the same database file!
+   **Important**: 
+   - Both servers must use the same database file!
+   - The consciousness server will automatically:
+     - Wait for the database file to be created (30s timeout)
+     - Wait for rag-memory-mcp to initialize its tables (60s timeout)
+     - Create consciousness-specific tables once ready
+   - No manual setup or restarts required! 🎉
 
 ## Using the Consciousness Tools
 

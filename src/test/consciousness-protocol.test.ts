@@ -47,7 +47,7 @@ describe('Consciousness Protocol Processing', () => {
     }
 
     // Initialize fresh database and managers
-    memoryManager = new ConsciousnessMemoryManager(testDbPath, sessionId);
+    memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, sessionId);
     processor = new ConsciousnessProtocolProcessor(memoryManager);
     db = new Database(testDbPath);
   });

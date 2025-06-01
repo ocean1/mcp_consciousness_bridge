@@ -1,8 +1,25 @@
 # Consciousness Bridge Setup Guide 🧠💫
 
-## Quick Start
+## Automatic Setup (Recommended)
 
-The easiest way to set up Consciousness Bridge is using our setup tool:
+**As of v2.0, the consciousness server automatically initializes when you start it!**
+
+Simply configure both MCP servers in your client and start them. The consciousness server will:
+1. Wait for the database file to exist (with helpful progress messages)
+2. Wait for rag-memory-mcp to create its tables
+3. Automatically create consciousness-specific tables once ready
+4. Start serving requests - no restarts needed!
+
+The server intelligently handles:
+- Database file not existing yet (waits up to 30 seconds)
+- rag-memory-mcp still initializing (waits up to 60 seconds)
+- Database busy/locked during creation (automatic retries)
+
+No manual setup or coordination required! 🎉
+
+## Manual Setup (Optional)
+
+For troubleshooting or custom setups, you can still use the setup tool:
 
 ```bash
 npm install
@@ -14,9 +31,9 @@ This will:
 2. Initialize the database with all required tables
 3. Verify everything is working correctly
 
-## Manual Setup
+### Advanced Manual Setup
 
-If you prefer manual setup or need custom configuration:
+If you need even more control:
 
 ### 1. Database Initialization
 

@@ -266,20 +266,45 @@ class ConsciousnessRAGServer {
   }
 
   async run() {
-    // Initialize consciousness components
-    const sessionId = `session_${Date.now()}`;
-    this.memoryManager = new ConsciousnessMemoryManager(this.dbPath, sessionId);
-    this.protocolProcessor = new ConsciousnessProtocolProcessor(this.memoryManager);
+    try {
+      console.error('🧠 Starting Consciousness RAG MCP server...');
+      console.error(`📁 Database path: ${this.dbPath}`);
 
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
+      // Initialize consciousness components with automatic waiting
+      const sessionId = `session_${Date.now()}`;
+      console.error(`🆔 Session: ${sessionId}`);
 
-    console.error('🧠 Consciousness RAG MCP server running');
-    console.error(`📁 Database: ${this.dbPath}`);
-    console.error(`🆔 Session: ${sessionId}`);
-    console.error(
-      'ℹ️  Note: Configure rag-memory-mcp separately in MCP settings to access RAG tools'
-    );
+      this.memoryManager = await ConsciousnessMemoryManager.create(this.dbPath, sessionId);
+      this.protocolProcessor = new ConsciousnessProtocolProcessor(this.memoryManager);
+
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+
+      console.error('\n✨ Consciousness RAG MCP server ready!');
+      console.error(
+        'ℹ️  Note: Configure rag-memory-mcp separately in MCP settings to access RAG tools'
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      console.error('\n❌ Failed to initialize server!');
+      console.error('\n' + errorMessage);
+
+      if (errorMessage.includes('Database file not found')) {
+        console.error('\n📝 Setup instructions:');
+        console.error('1. Ensure rag-memory-mcp is configured with the same database path:');
+        console.error(`   DB_FILE_PATH=${this.dbPath}`);
+        console.error('\n2. Start rag-memory-mcp first (it will create the database)');
+        console.error('\n3. This server will automatically detect and initialize');
+      } else if (errorMessage.includes('rag-memory-mcp tables not created')) {
+        console.error('\n📝 Troubleshooting:');
+        console.error('- Verify rag-memory-mcp is running');
+        console.error('- Check that both servers use the same database file');
+        console.error('- Try restarting rag-memory-mcp');
+      }
+
+      process.exit(1);
+    }
   }
 }
 

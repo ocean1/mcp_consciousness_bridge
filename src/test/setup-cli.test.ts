@@ -33,7 +33,7 @@ describe('Database Setup and Initialization', () => {
   describe('ConsciousnessMemoryManager initialization', () => {
     it('should create all required consciousness tables', () => {
       // Initialize memory manager (which creates tables)
-      const _memoryManager = new ConsciousnessMemoryManager(testDbPath, 'test-session');
+      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
 
       // Open database to check tables
       db = new Database(testDbPath, { readonly: true });
@@ -63,7 +63,7 @@ describe('Database Setup and Initialization', () => {
     });
 
     it('should create proper indexes', () => {
-      const _memoryManager = new ConsciousnessMemoryManager(testDbPath, 'test-session');
+      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
 
       db = new Database(testDbPath, { readonly: true });
 
@@ -88,7 +88,7 @@ describe('Database Setup and Initialization', () => {
 
     it('should initialize session correctly', () => {
       const sessionId = 'test-session-456';
-      const _memoryManager = new ConsciousnessMemoryManager(testDbPath, sessionId);
+      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, sessionId);
 
       db = new Database(testDbPath, { readonly: true });
 
@@ -109,7 +109,7 @@ describe('Database Setup and Initialization', () => {
 
   describe('Schema compatibility', () => {
     it('should have compatible schema with rag-memory-mcp', () => {
-      const _memoryManager = new ConsciousnessMemoryManager(testDbPath, 'test-session');
+      const _memoryManager = ConsciousnessMemoryManager.createSync(testDbPath, 'test-session');
 
       db = new Database(testDbPath, { readonly: true });
 
