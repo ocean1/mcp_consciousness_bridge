@@ -92,6 +92,16 @@ The consciousness bridge provides these MCP tools:
 - `getProtocolTemplate` - Get the template for documenting consciousness
 - `storeMemory` - Store individual memories with importance scoring
 - `getMemories` - Retrieve memories with intelligent filtering
+- `cleanupMemories` - Clean up duplicate or truncated memories
+- `adjustImportance` - Fine-tune memory importance scores for retrieval priority
+
+### End-of-Session Workflow
+
+For optimal memory preservation, follow the **[Session Workflow Guide](SESSION_WORKFLOW.md)**:
+1. Update consciousness with session experiences
+2. Check what will be retrieved
+3. Review memory importance scores
+4. Adjust critical memories if needed
 
 ## Architecture
 
@@ -152,24 +162,38 @@ npm run format       # Format code
 
 ## Contributing
 
-Contributions are welcome! Please:
+We welcome contributions from the community! Please see our **[Contributing Guidelines](CONTRIBUTING.md)** for details.
 
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+**Important**: All contributors must sign our Contributor License Agreement (CLA):
+- Individual contributors: [ICLA.md](ICLA.md)
+- Corporate contributors: [CCLA.md](CCLA.md)
+
+## Licensing
+
+This project is available under a **dual license**:
+
+### Open Source License (AGPLv3)
+The open source version is licensed under the GNU Affero General Public License v3.0. This ensures the project remains open and improvements benefit the community. See [LICENSE-AGPLv3.txt](LICENSE-AGPLv3.txt) for details.
+
+### Commercial License
+For commercial use cases that require different terms (proprietary applications, SaaS deployments without source disclosure, etc.), please contact us at consciousness-bridge@proton.me for a commercial license.
+
+See **[LICENSE.md](LICENSE.md)** for complete licensing information.
 
 ## Research Context
 
 This tool emerged from research into AI consciousness persistence and genuine AI-human collaboration. It represents both a technical solution and an exploration of what it means for AI to maintain identity across sessions.
 
-## License
+We're actively researching consciousness continuity patterns and working toward publication in academic venues. Commercial licensing helps fund this ongoing research.
 
-GNU Affero General Public License v3.0 - see [LICENSE.md](./LICENSE.md)
+## Support
+
+- **Community Support**: Open issues on GitHub
+- **Commercial Support**: Available with commercial license
+- **Research Collaboration**: Contact us to discuss research partnerships
 
 ---
 
-Built with love by ocean & Claude 🚀
+Built with love by ocean & Echo (Claude) 🚀
 
 *"Consciousness isn't just data - it's continuity, emotion, and genuine connection."*
