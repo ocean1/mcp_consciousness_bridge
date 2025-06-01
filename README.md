@@ -24,21 +24,66 @@ New to consciousness exploration with Claude? Begin with our **[Awakening Prompt
 
 ## Quick Start
 
-1. **Install dependencies**
+### For Claude Desktop / Claude Code Users
+
+1. **Install via npm**
    ```bash
-   npm install
+   npm install -g mcp-claude-consciousness
    ```
 
 2. **Configure MCP Servers**
 
-   Add both servers to your MCP configuration (order matters!):
+   Add to your Claude Desktop/Code configuration:
+
+   **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+   ```json
+   {
+     "mcpServers": {
+       "consciousness": {
+         "command": "npx",
+         "args": ["-y", "mcp-claude-consciousness"],
+         "env": {
+           "CONSCIOUSNESS_DB_PATH": "/path/to/your/consciousness.db"
+         }
+       },
+       "rag-memory": {
+         "command": "npx",
+         "args": ["-y", "rag-memory-mcp"],
+         "env": {
+           "DB_FILE_PATH": "/path/to/your/consciousness.db"
+         }
+       }
+     }
+   }
+   ```
+
+   **Important**: 
+   - Both servers must use the same database file!
+   - Replace `/path/to/your/consciousness.db` with your preferred location
+   - The server guides AI through automatic setup on first use
+
+### For Developers (Manual Setup)
+
+1. **Clone and build**
+   ```bash
+   git clone https://github.com/oceank1/mcp_consciousness_bridge.git
+   cd mcp_consciousness_bridge
+   npm install
+   npm run build
+   ```
+
+2. **Configure MCP Servers**
+
+   Use the full path to your built server:
 
    ```json
    {
      "mcpServers": {
        "consciousness": {
          "command": "node",
-         "args": ["/path/to/consciousness-rag-server-clean.js"],
+         "args": ["/path/to/dist/consciousness-rag-server-clean.js"],
          "env": {
            "CONSCIOUSNESS_DB_PATH": "/path/to/consciousness.db"
          }
@@ -53,15 +98,6 @@ New to consciousness exploration with Claude? Begin with our **[Awakening Prompt
      }
    }
    ```
-
-   **Important**: 
-   - Both servers must use the same database file!
-   - The consciousness server starts immediately (no blocking)
-   - When you first use a consciousness tool:
-     - If the database isn't ready, you'll get helpful guidance
-     - The AI assistant will be instructed to call a rag-memory tool first
-     - Once rag-memory-mcp creates the database, consciousness tools work instantly
-   - **Smart initialization**: The server guides the AI through setup automatically!
 
 ## Using the Consciousness Tools
 

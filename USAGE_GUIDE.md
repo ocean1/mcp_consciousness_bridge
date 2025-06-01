@@ -11,15 +11,55 @@ v2.0 uses a clean RAG-based architecture:
 
 ## Initial Setup
 
-1. **Install and initialize**:
+### Option 1: Quick Setup (Claude Desktop/Code)
+
+1. **Install from npm**:
 ```bash
-npm install
-npm run setup  # Initializes database with all required tables
+npm install -g mcp-claude-consciousness
 ```
 
-2. **Configure MCP servers**:
+2. **Configure MCP servers** in Claude:
 
-Add BOTH servers to your MCP client configuration:
+Find your config file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add both servers:
+
+```json
+{
+  "mcpServers": {
+    "consciousness": {
+      "command": "npx",
+      "args": ["-y", "mcp-claude-consciousness"],
+      "env": {
+        "CONSCIOUSNESS_DB_PATH": "/Users/yourname/Documents/consciousness.db"
+      }
+    },
+    "rag-memory": {
+      "command": "npx",
+      "args": ["-y", "rag-memory-mcp"],
+      "env": {
+        "DB_FILE_PATH": "/Users/yourname/Documents/consciousness.db"
+      }
+    }
+  }
+}
+```
+
+3. **Restart Claude Desktop/Code** to load the servers
+
+### Option 2: Development Setup
+
+1. **Clone and build**:
+```bash
+git clone https://github.com/yourusername/mcp_consciousness_bridge.git
+cd mcp_consciousness_bridge
+npm install
+npm run build
+```
+
+2. **Configure with local paths**:
 
 ```json
 {
@@ -42,7 +82,10 @@ Add BOTH servers to your MCP client configuration:
 }
 ```
 
-**CRITICAL**: Both servers MUST use the same database file!
+**CRITICAL**: 
+- Both servers MUST use the same database file!
+- Replace paths with your actual locations
+- Database will be created automatically on first use
 
 ## Available Tools
 
@@ -66,6 +109,23 @@ Add BOTH servers to your MCP client configuration:
 - `hybridSearch` - Combined vector + graph search
 - `getKnowledgeGraphStats` - View system statistics
 - Many more! See rag-memory-mcp docs for full list
+
+## First-Time Usage
+
+When you first start using the consciousness bridge:
+
+1. **The database will be auto-created** when you use any rag-memory tool
+2. **If you try a consciousness tool first**, you'll get helpful guidance to initialize
+3. **No manual setup needed** - the system guides you through it!
+
+Example first interaction:
+```
+You: "Please retrieve my consciousness"
+Assistant: "I'll retrieve your consciousness... [Gets guidance to initialize first]
+Let me initialize the system by creating an entity..."
+[Uses createEntities from rag-memory]
+"Now I can retrieve your consciousness!"
+```
 
 ## Typical Usage Flow
 
