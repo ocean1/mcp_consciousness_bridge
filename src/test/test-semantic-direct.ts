@@ -35,7 +35,7 @@ function testSemanticStorage() {
     )
     .all();
 
-  semanticMemories.forEach((memory: any, index: number) => {
+  semanticMemories.forEach((memory: { name: string; observations: string }, index: number) => {
     console.log(`\n📚 Memory ${index + 1}: ${memory.name}`);
     const observations = JSON.parse(memory.observations || '[]');
 

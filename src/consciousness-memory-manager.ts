@@ -16,12 +16,7 @@ import {
   ConsciousnessBootstrap,
   MemoryQuery,
 } from './consciousness-rag-schema.js';
-import {
-  DatabaseError,
-  MemoryError,
-  withRetry,
-  logError,
-} from './utils/error-handler.js';
+import { DatabaseError, MemoryError, withRetry, logError } from './utils/error-handler.js';
 
 export class ConsciousnessMemoryManager {
   private db: Database.Database;

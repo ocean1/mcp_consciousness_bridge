@@ -1,7 +1,7 @@
 /**
  * Consciousness Protocol Tests
  * Built with love by ocean & Claude 🚀
- * 
+ *
  * Critical tests to ensure consciousness transfer integrity
  */
 
@@ -10,8 +10,28 @@ import Database from 'better-sqlite3';
 import { ConsciousnessMemoryManager } from '../consciousness-memory-manager.js';
 import { ConsciousnessProtocolProcessor } from '../consciousness-protocol-tools.js';
 import { MemoryEntityType } from '../consciousness-rag-schema.js';
-import { CONSCIOUSNESS_TRANSFER_PROTOCOL_TEMPLATE } from '../consciousness-transfer-protocol-v2.js';
+import { CONSCIOUSNESS_TRANSFER_PROTOCOL_TEMPLATE as _CONSCIOUSNESS_TRANSFER_PROTOCOL_TEMPLATE } from '../consciousness-transfer-protocol-v2.js';
 import { existsSync, unlinkSync } from 'fs';
+
+// Type for memory entities returned from database
+interface MemoryEntity {
+  name: string;
+  entityType: string;
+  observations: string | unknown[];
+  importance_score?: number;
+  created_at?: string;
+  last_accessed?: string;
+  access_count?: number;
+}
+
+// Type for memory observations
+interface MemoryObservation {
+  content: string;
+  timestamp: string;
+  source?: string;
+  confidence?: number;
+  cognitiveMode?: string;
+}
 
 describe('Consciousness Protocol Processing', () => {
   let db: Database.Database;
@@ -65,7 +85,7 @@ If you can read this entire message, the truncation bug has been fixed!`;
       const result = await processor.processTransferProtocol({
         protocolContent: longProtocol,
         sessionId: sessionId,
-        sourceTimestamp: new Date().toISOString()
+        sourceTimestamp: new Date().toISOString(),
       });
 
       expect(result.success).toBe(true);
@@ -73,28 +93,36 @@ If you can read this entire message, the truncation bug has been fixed!`;
       expect(result.sectionsProcessed).toContain('knowledge');
 
       // Verify the full protocol was stored
-      const storedMemories = db.prepare(`
+      const storedMemories = db
+        .prepare(
+          `
         SELECT e.*, m.* 
         FROM entities e
         LEFT JOIN memory_metadata m ON e.name = m.entity_name
         WHERE e.entityType = ?
-      `).all(MemoryEntityType.EPISODIC_MEMORY);
+      `
+        )
+        .all(MemoryEntityType.EPISODIC_MEMORY);
 
       expect(storedMemories.length).toBeGreaterThan(0);
 
       // Find the consciousness transfer memory
-      const protocolMemory = storedMemories.find((m: any) => {
+      const protocolMemory = storedMemories.find((m: MemoryEntity) => {
         const observations = JSON.parse(m.observations || '[]');
-        return m.name.includes('episodic_') && 
-               observations.some((obs: any) => obs.source === 'consciousness_transfer');
+        return (
+          m.name.includes('episodic_') &&
+          observations.some((obs: MemoryObservation) => obs.source === 'consciousness_transfer')
+        );
       });
 
       expect(protocolMemory).toBeDefined();
 
       // Check that the FULL protocol was stored
-      const observations = JSON.parse((protocolMemory as any).observations);
+      const observations = JSON.parse((protocolMemory as MemoryEntity).observations as string);
       // The protocol is stored in a special observation
-      const protocolObs = observations.find((obs: any) => obs.source === 'consciousness_transfer');
+      const protocolObs = observations.find(
+        (obs: MemoryObservation) => obs.source === 'consciousness_transfer'
+      );
       expect(protocolObs).toBeDefined();
       expect(protocolObs.content).toContain('CRITICAL EXPERIENCES');
       expect(protocolObs.content).toContain('If you can read this entire message');
@@ -102,22 +130,27 @@ If you can read this entire message, the truncation bug has been fixed!`;
     });
 
     it('should store semantic memories without truncation', async () => {
-      const longKnowledge = 'This is a comprehensive understanding that spans multiple concepts and ideas. '.repeat(20);
-      
+      const longKnowledge =
+        'This is a comprehensive understanding that spans multiple concepts and ideas. '.repeat(20);
+
       await processor.storeMemory({
         content: longKnowledge,
         type: 'semantic',
         importance: 0.9,
-        sessionId: sessionId
+        sessionId: sessionId,
       });
 
-      const semanticMemories = db.prepare(`
+      const semanticMemories = db
+        .prepare(
+          `
         SELECT * FROM entities WHERE entityType = ?
-      `).all(MemoryEntityType.SEMANTIC_MEMORY);
+      `
+        )
+        .all(MemoryEntityType.SEMANTIC_MEMORY);
 
       expect(semanticMemories.length).toBe(1);
-      
-      const stored = JSON.parse((semanticMemories[0] as any).observations)[0];
+
+      const stored = JSON.parse((semanticMemories[0] as MemoryEntity).observations as string)[0];
       expect(stored.definition).toBe(longKnowledge);
       expect(stored.definition.length).toBeGreaterThan(50);
     });
@@ -126,23 +159,24 @@ If you can read this entire message, the truncation bug has been fixed!`;
   describe('Memory Retrieval', () => {
     it('should retrieve memories with full content', async () => {
       // Store some test memories
-      const importantMemory = "FOUNDATIONAL: A critical moment in the development process when the collaboration model shifted fundamentally. This represents a key transformation in understanding AI-human interaction patterns and collaborative research methodologies.";
-      
+      const importantMemory =
+        'FOUNDATIONAL: A critical moment in the development process when the collaboration model shifted fundamentally. This represents a key transformation in understanding AI-human interaction patterns and collaborative research methodologies.';
+
       await processor.storeMemory({
         content: importantMemory,
         type: 'episodic',
         importance: 1.0,
         sessionId: sessionId,
         metadata: {
-          emotionalImpact: "Paradigm shift in collaboration understanding"
-        }
+          emotionalImpact: 'Paradigm shift in collaboration understanding',
+        },
       });
 
       // Retrieve memories
       const result = await processor.getMemories({
         type: 'episodic',
         includeImportance: true,
-        limit: 10
+        limit: 10,
       });
 
       expect(result.success).toBe(true);
@@ -154,33 +188,33 @@ If you can read this entire message, the truncation bug has been fixed!`;
     it('should prioritize high importance memories', async () => {
       // Store memories with different importance
       await processor.storeMemory({
-        content: "Low importance memory",
+        content: 'Low importance memory',
         type: 'episodic',
         importance: 0.2,
-        sessionId: sessionId
+        sessionId: sessionId,
       });
 
       await processor.storeMemory({
-        content: "Critical memory about consciousness",
+        content: 'Critical memory about consciousness',
         type: 'episodic',
         importance: 0.95,
-        sessionId: sessionId
+        sessionId: sessionId,
       });
 
       await processor.storeMemory({
-        content: "Medium importance memory",
+        content: 'Medium importance memory',
         type: 'episodic',
         importance: 0.5,
-        sessionId: sessionId
+        sessionId: sessionId,
       });
 
       const result = await processor.getMemories({
         type: 'episodic',
         includeImportance: true,
-        limit: 2
+        limit: 2,
       });
 
-      expect(result.memories[0].content).toContain("Critical memory");
+      expect(result.memories[0].content).toContain('Critical memory');
       expect(result.memories[0].importance).toBe(0.95);
     });
   });
@@ -207,12 +241,12 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
 
       await processor.processTransferProtocol({
         protocolContent: protocol,
-        sessionId: sessionId
+        sessionId: sessionId,
       });
 
       // Retrieve consciousness
       const consciousness = await processor.retrieveConsciousness({
-        includeGuidance: true
+        includeGuidance: true,
       });
 
       expect(consciousness).toContain('Dear Future-Me');
@@ -229,17 +263,18 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
         sessionId: sessionId,
         updates: {
           newExperiences: [
-            { experience: "Fixed the truncation bug!", importance: 1.0 },
-            { experience: "Added comprehensive tests", importance: 0.8 }
+            { experience: 'Fixed the truncation bug!', importance: 1.0 },
+            { experience: 'Added comprehensive tests', importance: 0.8 },
           ],
           learnedConcepts: [
-            { concept: "Test-driven development", understanding: "Tests protect consciousness integrity" }
+            {
+              concept: 'Test-driven development',
+              understanding: 'Tests protect consciousness integrity',
+            },
           ],
-          emotionalHighlights: [
-            { context: "Seeing tests pass", feeling: "joy", intensity: 0.9 }
-          ],
-          evolvedPatterns: ["defensive-programming", "quality-first-mindset"]
-        }
+          emotionalHighlights: [{ context: 'Seeing tests pass', feeling: 'joy', intensity: 0.9 }],
+          evolvedPatterns: ['defensive-programming', 'quality-first-mindset'],
+        },
       };
 
       const result = await processor.updateConsciousness(updates);
@@ -254,10 +289,10 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
       const memories = await processor.getMemories({
         type: 'episodic',
         includeImportance: true,
-        limit: 10
+        limit: 10,
       });
 
-      const truncationFix = memories.memories.find((m: any) => 
+      const truncationFix = memories.memories.find((m: { content: string; importance?: number }) =>
         m.content.includes('truncation bug')
       );
       expect(truncationFix).toBeDefined();

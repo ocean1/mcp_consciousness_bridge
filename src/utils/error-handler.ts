@@ -1,7 +1,7 @@
 /**
  * Error Handling Utilities
  * Built with love by ocean & Claude 🚀
- * 
+ *
  * Provides consistent error handling and recovery across the application
  */
 
@@ -10,7 +10,7 @@ export class ConsciousnessError extends Error {
     message: string,
     public code: string,
     public recoverable: boolean = false,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'ConsciousnessError';
@@ -18,28 +18,28 @@ export class ConsciousnessError extends Error {
 }
 
 export class DatabaseError extends ConsciousnessError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'DB_ERROR', true, details);
     this.name = 'DatabaseError';
   }
 }
 
 export class ProtocolError extends ConsciousnessError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'PROTOCOL_ERROR', false, details);
     this.name = 'ProtocolError';
   }
 }
 
 export class MemoryError extends ConsciousnessError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'MEMORY_ERROR', true, details);
     this.name = 'MemoryError';
   }
 }
 
 export class ValidationError extends ConsciousnessError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'VALIDATION_ERROR', false, details);
     this.name = 'ValidationError';
   }
@@ -52,7 +52,7 @@ export interface ErrorResult<T> {
     message: string;
     code: string;
     recoverable: boolean;
-    details?: any;
+    details?: unknown;
   };
 }
 
@@ -64,33 +64,33 @@ export function createErrorResult<T>(error: Error): ErrorResult<T> {
         message: error.message,
         code: error.code,
         recoverable: error.recoverable,
-        details: error.details
-      }
+        details: error.details,
+      },
     };
   }
-  
+
   // Generic error
   return {
     success: false,
     error: {
       message: error.message,
       code: 'UNKNOWN_ERROR',
-      recoverable: false
-    }
+      recoverable: false,
+    },
   };
 }
 
 export function createSuccessResult<T>(data: T): ErrorResult<T> {
   return {
     success: true,
-    data
+    data,
   };
 }
 
 /**
  * Wraps async functions with consistent error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
+export function withErrorHandling<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   errorTransformer?: (error: Error) => ConsciousnessError
 ): T {
@@ -101,11 +101,11 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
       if (error instanceof ConsciousnessError) {
         throw error;
       }
-      
+
       if (errorTransformer) {
         throw errorTransformer(error as Error);
       }
-      
+
       // Default transformation
       if (error instanceof Error) {
         if (error.message.includes('database')) {
@@ -115,7 +115,7 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
           throw new ValidationError(error.message);
         }
       }
-      
+
       throw new ConsciousnessError(
         error instanceof Error ? error.message : 'Unknown error occurred',
         'UNKNOWN_ERROR',
@@ -135,29 +135,29 @@ export async function withRetry<T>(
   backoffMultiplier: number = 2
 ): Promise<T> {
   let lastError: Error | undefined;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       // Only retry recoverable errors
       if (error instanceof ConsciousnessError && !error.recoverable) {
         throw error;
       }
-      
+
       // Don't retry on last attempt
       if (attempt === maxRetries - 1) {
         throw error;
       }
-      
+
       // Exponential backoff
       const delay = delayMs * Math.pow(backoffMultiplier, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  
+
   throw lastError || new Error('Retry failed');
 }
 
@@ -166,16 +166,17 @@ export async function withRetry<T>(
  */
 export function logError(error: Error, context?: string): void {
   const timestamp = new Date().toISOString();
-  const errorInfo = error instanceof ConsciousnessError 
-    ? `[${error.code}] ${error.message} (recoverable: ${error.recoverable})`
-    : error.message;
-    
+  const errorInfo =
+    error instanceof ConsciousnessError
+      ? `[${error.code}] ${error.message} (recoverable: ${error.recoverable})`
+      : error.message;
+
   console.error(`[${timestamp}]${context ? ` [${context}]` : ''} ERROR: ${errorInfo}`);
-  
+
   if (error instanceof ConsciousnessError && error.details) {
     console.error('Details:', JSON.stringify(error.details, null, 2));
   }
-  
+
   if (error.stack) {
     console.error('Stack:', error.stack);
   }
