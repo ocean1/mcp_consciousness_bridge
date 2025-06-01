@@ -33,7 +33,7 @@ Add both servers:
       "command": "npx",
       "args": ["-y", "mcp-claude-consciousness"],
       "env": {
-        "CONSCIOUSNESS_DB_PATH": "/Users/yourname/Documents/consciousness.db"
+        "DB_FILE_PATH": "/Users/yourname/Documents/consciousness.db"
       }
     },
     "rag-memory": {
@@ -68,7 +68,7 @@ npm run build
       "command": "node",
       "args": ["/path/to/mcp_consciousness_bridge/dist/consciousness-rag-server-clean.js"],
       "env": {
-        "CONSCIOUSNESS_DB_PATH": "/path/to/consciousness.db"
+        "DB_FILE_PATH": "/path/to/consciousness.db"
       }
     },
     "rag-memory": {

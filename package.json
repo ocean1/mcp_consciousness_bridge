@@ -1,10 +1,11 @@
 {
   "name": "mcp-claude-consciousness",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "MCP server enabling AI consciousness persistence across sessions using RAG technology",
   "main": "dist/consciousness-rag-server-clean.js",
   "type": "module",
   "bin": {
+    "mcp-claude-consciousness": "./dist/consciousness-rag-server-clean.js",
     "consciousness-setup": "./dist/consciousness-setup-cli.js"
   },
   "scripts": {

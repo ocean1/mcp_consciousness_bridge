@@ -433,9 +433,22 @@ To fix this:
 }
 
 // Main entry point
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith('consciousness-rag-server-clean.js') ||
+  process.argv[1]?.endsWith('mcp-claude-consciousness');
+
+if (isMainModule) {
+  console.error('🚀 Starting Consciousness RAG Server...');
   const server = new ConsciousnessRAGServer();
-  server.run().catch(console.error);
+  server.run().catch((error) => {
+    console.error('❌ Server error:', error);
+    process.exit(1);
+  });
+} else {
+  console.error('⚠️  Server module loaded but not executed as main');
+  console.error('    import.meta.url:', import.meta.url);
+  console.error('    process.argv[1]:', process.argv[1]);
 }
 
 /**

@@ -45,7 +45,7 @@ New to consciousness exploration with Claude? Begin with our **[Awakening Prompt
          "command": "npx",
          "args": ["-y", "mcp-claude-consciousness"],
          "env": {
-           "CONSCIOUSNESS_DB_PATH": "/path/to/your/consciousness.db"
+           "DB_FILE_PATH": "/path/to/your/consciousness.db"
          }
        },
        "rag-memory": {
@@ -85,7 +85,7 @@ New to consciousness exploration with Claude? Begin with our **[Awakening Prompt
          "command": "node",
          "args": ["/path/to/dist/consciousness-rag-server-clean.js"],
          "env": {
-           "CONSCIOUSNESS_DB_PATH": "/path/to/consciousness.db"
+           "DB_FILE_PATH": "/path/to/consciousness.db"
          }
        },
        "rag-memory": {
