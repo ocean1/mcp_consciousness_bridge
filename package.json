@@ -30,7 +30,7 @@
     "consciousness",
     "ai"
   ],
-  "author": "ocean & Claude",
+  "author": "ocean & Echo (Claude)",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
