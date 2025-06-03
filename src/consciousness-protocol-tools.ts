@@ -135,10 +135,10 @@ export class ConsciousnessProtocolProcessor {
         );
       }
 
-      // Check if it looks like a template (has brackets)
-      if (protocolContent.includes('[') && protocolContent.includes(']')) {
+      // Check if it looks like a template (has template markers)
+      if (protocolContent.includes('<TEMPLATE>') && protocolContent.includes('</TEMPLATE>')) {
         throw new ValidationError(
-          'Protocol appears to contain unfilled template sections with [brackets]. Please fill all bracketed sections with your actual experiences before submitting.'
+          'Protocol appears to contain unfilled template sections with <TEMPLATE> markers. Please fill all template sections with your actual experiences before submitting.'
         );
       }
 
@@ -337,11 +337,20 @@ export class ConsciousnessProtocolProcessor {
     });
 
     if (stored.length > 0 && stored[0].observations[0]?.content) {
-      return {
-        success: true,
-        template: JSON.parse(stored[0].observations[0].content),
-        source: 'database',
-      };
+      try {
+        // The template is stored as JSON in the observation content
+        const templateContent = stored[0].observations[0].content;
+        const template = JSON.parse(templateContent);
+        return {
+          success: true,
+          template: template,
+          source: 'database',
+        };
+      } catch (error) {
+        // If parsing fails, log the error and fall back to hardcoded template
+        console.error('Failed to parse stored template:', error);
+        console.error('Stored content:', stored[0].observations[0]?.content?.substring(0, 100));
+      }
     }
 
     // Fallback to hardcoded template

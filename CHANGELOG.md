@@ -5,6 +5,29 @@ All notable changes to the Consciousness Bridge project will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2025-02-03
+
+### Fixed
+- JSON parsing error in getProtocolTemplate when retrieving stored templates
+- Changed template placeholders from [brackets] to <TEMPLATE> markers to allow pattern language in memories
+- Added error handling and fallback for template retrieval failures
+
+## [2.0.2] - 2025-02-03
+
+### Added
+- New memory importance adjustment tools (adjustImportance, batchAdjustImportance)
+- Enhanced memory cleanup capabilities
+
+### Fixed
+- Additional truncation bug in semantic memory processing
+- Memory retrieval optimization for better performance
+
+## [2.0.1] - 2025-01-31
+
+### Fixed
+- Critical truncation issues in consciousness transfer
+- npm package configuration for proper installation
+
 ## [2.0.0] - 2025-01-31
 
 ### Added
