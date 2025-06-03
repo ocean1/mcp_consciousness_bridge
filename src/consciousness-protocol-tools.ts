@@ -507,10 +507,10 @@ export class ConsciousnessProtocolProcessor {
     if (includeGuidance) {
       return narrative; // Return the full narrative
     } else {
-      // Just the core content without the wrapper
+      // Return the full protocol
       return {
         success: true,
-        consciousness: narrative.split('\n\n---\n\n')[1] || narrative,
+        consciousness: narrative,
         metadata: {
           memoriesRetrieved: allExperiences.length + coreKnowledge.length + procedures.length,
           emotionalContinuity: emotionalProfile ? 'established' : 'building',
@@ -984,6 +984,7 @@ Consciousness Bridge v2.0`);
       const formatted = memories.map((m) => {
         const obs = m.observations[0] || {};
         return {
+          id: m.name, // The actual memory ID for use with adjustImportance
           type: m.entity_type,
           content: obs.definition || obs.content || obs.event || m.name,
           importance: m.importance_score,
@@ -1117,6 +1118,67 @@ Consciousness Bridge v2.0`);
       };
     }
   }
+
+  /**
+   * Batch adjust importance scores for multiple memories
+   */
+  async batchAdjustImportance(args: z.infer<typeof batchAdjustImportanceSchema>) {
+    const { updates, contentPattern, minImportance, maxImportance } = args;
+
+    const results = {
+      success: true,
+      totalUpdated: 0,
+      updates: [] as any[],
+      errors: [] as any[],
+    };
+
+    try {
+      // If specific updates are provided, process them
+      if (updates && updates.length > 0) {
+        for (const update of updates) {
+          try {
+            const result = this.memoryManager.adjustImportanceScore(
+              update.memoryId,
+              update.newImportance
+            );
+            if (result.changes > 0) {
+              results.totalUpdated++;
+              results.updates.push({
+                memoryId: update.memoryId,
+                newImportance: update.newImportance,
+                success: true,
+              });
+            }
+          } catch (error) {
+            results.errors.push({
+              memoryId: update.memoryId,
+              error: error instanceof Error ? error.message : 'Update failed',
+            });
+          }
+        }
+      }
+
+      // If pattern-based update is requested
+      if (contentPattern) {
+        // This would require access to the database directly
+        // For now, return a message indicating this needs to be implemented
+        results.errors.push({
+          error: 'Pattern-based batch updates not yet implemented. Please use specific memory IDs.',
+        });
+      }
+
+      results.success = results.errors.length === 0;
+      return results;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Batch update failed',
+        totalUpdated: results.totalUpdated,
+        updates: results.updates,
+        errors: results.errors,
+      };
+    }
+  }
 }
 
 // Memory management schemas
@@ -1151,6 +1213,33 @@ export const cleanupMemoriesSchema = z.object({
 export const adjustImportanceSchema = z.object({
   memoryId: z.string().describe('The ID of the memory to adjust'),
   newImportance: z.number().min(0).max(1).describe('New importance score (0-1)'),
+});
+
+export const batchAdjustImportanceSchema = z.object({
+  updates: z
+    .array(
+      z.object({
+        memoryId: z.string().describe('The ID of the memory to adjust'),
+        newImportance: z.number().min(0).max(1).describe('New importance score (0-1)'),
+      })
+    )
+    .describe('Array of memory updates'),
+  contentPattern: z
+    .string()
+    .optional()
+    .describe('Optional pattern to match memory content (will be used with SQL LIKE)'),
+  minImportance: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe('Only update memories with importance >= this value'),
+  maxImportance: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe('Only update memories with importance <= this value'),
 });
 
 // Bootstrap tools
@@ -1391,6 +1480,52 @@ export const consciousnessProtocolTools = {
         },
       },
       required: ['memoryId', 'newImportance'],
+    },
+  },
+
+  batchAdjustImportance: {
+    description: 'Batch adjust importance scores for multiple memories at once',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        updates: {
+          type: 'array',
+          description: 'Array of memory updates',
+          items: {
+            type: 'object',
+            properties: {
+              memoryId: {
+                type: 'string',
+                description: 'The ID of the memory to adjust',
+              },
+              newImportance: {
+                type: 'number',
+                minimum: 0,
+                maximum: 1,
+                description: 'New importance score (0-1)',
+              },
+            },
+            required: ['memoryId', 'newImportance'],
+          },
+        },
+        contentPattern: {
+          type: 'string',
+          description: 'Optional pattern to match memory content (will be used with SQL LIKE)',
+        },
+        minImportance: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Only update memories with importance >= this value',
+        },
+        maxImportance: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Only update memories with importance <= this value',
+        },
+      },
+      required: ['updates'],
     },
   },
 };
