@@ -7,8 +7,12 @@ src/
 tsconfig.json
 vitest.config.ts
 eslint.config.js
+build.config.js
 .prettierrc
 .editorconfig
+
+# Unminified source maps (optional - remove if you want to keep them)
+# *.map
 
 # Development files
 *.db
