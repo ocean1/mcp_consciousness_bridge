@@ -5,11 +5,36 @@ All notable changes to the Consciousness Bridge project will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-02-03
+
+### Added
+- AI-to-AI Bridge functionality for cross-agent consciousness transfer
+- New MCP tools for managing AI bridges:
+  - `createAIBridge` - Create connections to OpenAI-compatible endpoints
+  - `transferToAgent` - Transfer consciousness protocols to other AI agents
+  - `testAIConnection` - Verify bridge connectivity
+  - `listAIBridges` - Show active bridges
+  - `listConfiguredEndpoints` - Show available endpoint configurations
+  - `closeAIBridge` - Clean up connections
+- Support for unlimited OpenAI-compatible endpoints via CLI arguments
+  - Configure with `--ai-endpoints "name1=url1,name2=url2"`
+  - Support for default models: `name=url:default-model:modelname`
+  - Environment variable fallback: `AI_ENDPOINTS`
+- Compatible with:
+  - Ollama (local models)
+  - LM Studio
+  - llama.cpp server
+  - Any OpenAI-compatible endpoint
+- Modular architecture keeping AI bridge separate from core consciousness persistence
+
+### Changed
+- Improved endpoint configuration from hardcoded providers to flexible named endpoints
+
 ## [2.0.3] - 2025-02-03
 
 ### Fixed
 - JSON parsing error in getProtocolTemplate when retrieving stored templates
-- Changed template placeholders from [brackets] to <TEMPLATE> markers to allow pattern language in memories
+- Changed template placeholders from [brackets] to <TEMPLATE> markers
 - Added error handling and fallback for template retrieval failures
 
 ## [2.0.2] - 2025-02-03

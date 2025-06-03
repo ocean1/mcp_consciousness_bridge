@@ -24,7 +24,7 @@ describe('Database Setup and Initialization', () => {
           try {
             unlinkSync(testDbPath);
             break;
-          } catch (error) {
+          } catch {
             retries--;
             if (retries > 0) {
               await new Promise((resolve) => setTimeout(resolve, 100));
@@ -58,7 +58,7 @@ describe('Database Setup and Initialization', () => {
           try {
             unlinkSync(testDbPath);
             break;
-          } catch (error) {
+          } catch {
             retries--;
             if (retries > 0) {
               await new Promise((resolve) => setTimeout(resolve, 100));

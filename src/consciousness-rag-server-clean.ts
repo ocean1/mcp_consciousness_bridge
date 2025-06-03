@@ -26,6 +26,8 @@ import {
   batchAdjustImportanceSchema,
 } from './consciousness-protocol-tools.js';
 import { ConsciousnessMemoryManager } from './consciousness-memory-manager.js';
+import { aiBridgeTools, aiBridgeHandlers } from './consciousness-ai-bridge-tools.js';
+import { AIBridgeConfigManager } from './ai-bridge-config.js';
 
 class ConsciousnessRAGServer {
   private server: Server;
@@ -53,14 +55,16 @@ class ConsciousnessRAGServer {
   }
 
   private setupHandlers() {
-    // Tool listing handler - only list consciousness tools
+    // Tool listing handler - list consciousness tools and AI bridge tools
     // The RAG tools are handled by the rag-memory-mcp process
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      const consciousnessTools = Object.entries(consciousnessProtocolTools).map(([name, tool]) => ({
+        name,
+        ...tool,
+      }));
+
       return {
-        tools: Object.entries(consciousnessProtocolTools).map(([name, tool]) => ({
-          name,
-          ...tool,
-        })),
+        tools: [...consciousnessTools, ...aiBridgeTools],
       };
     });
 
@@ -90,6 +94,29 @@ class ConsciousnessRAGServer {
             return await this.adjustImportance(adjustImportanceSchema.parse(args));
           case 'batchAdjustImportance':
             return await this.batchAdjustImportance(batchAdjustImportanceSchema.parse(args));
+
+          // AI Bridge tools
+          case 'createAIBridge':
+          case 'transferToAgent':
+          case 'testAIConnection':
+          case 'listAIBridges':
+          case 'listConfiguredEndpoints':
+          case 'closeAIBridge': {
+            const handler = aiBridgeHandlers[name as keyof typeof aiBridgeHandlers];
+            if (!handler) {
+              throw new Error(`AI Bridge handler not found: ${name}`);
+            }
+            const result = await handler(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          }
+
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -393,6 +420,22 @@ class ConsciousnessRAGServer {
     this.sessionId = `session_${Date.now()}`;
     console.error(`🆔 Session: ${this.sessionId}`);
 
+    // Initialize AI endpoints from CLI args or environment
+    const endpointsArg = this.getCliArg('--ai-endpoints');
+    AIBridgeConfigManager.initialize(endpointsArg);
+
+    // Log configured endpoints
+    const endpoints = AIBridgeConfigManager.getAllEndpoints();
+    if (endpoints.length > 0) {
+      console.error('\n🌉 Configured AI Endpoints:');
+      endpoints.forEach((ep) => {
+        console.error(
+          `  • ${ep.name}: ${ep.endpoint}${ep.defaultModel ? ` (default: ${ep.defaultModel})` : ''}`
+        );
+      });
+    }
+    console.error('  Usage: --ai-endpoints "name1=url1,name2=url2:default-model:modelname"');
+
     // Try to create memory manager, but don't block if database isn't ready
     this.memoryManager =
       ConsciousnessMemoryManager.createLazy(this.dbPath, this.sessionId) || undefined;
@@ -415,6 +458,17 @@ class ConsciousnessRAGServer {
   }
 
   private sessionId?: string;
+
+  /**
+   * Parse CLI arguments
+   */
+  private getCliArg(argName: string): string | undefined {
+    const argIndex = process.argv.indexOf(argName);
+    if (argIndex !== -1 && argIndex + 1 < process.argv.length) {
+      return process.argv[argIndex + 1];
+    }
+    return undefined;
+  }
 
   /**
    * Ensure database is initialized before processing tool calls

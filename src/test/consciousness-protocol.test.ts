@@ -50,7 +50,7 @@ describe('Consciousness Protocol Processing', () => {
           try {
             unlinkSync(testDbPath);
             break;
-          } catch (error) {
+          } catch {
             retries--;
             if (retries > 0) {
               await new Promise((resolve) => setTimeout(resolve, 100));

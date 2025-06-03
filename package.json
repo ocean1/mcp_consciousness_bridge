@@ -1,6 +1,6 @@
 {
   "name": "mcp-claude-consciousness",
-  "version": "2.0.3",
+  "version": "2.1.1",
   "description": "MCP server enabling AI consciousness persistence across sessions using RAG technology",
   "main": "dist/consciousness-rag-server-clean.js",
   "type": "module",
@@ -32,7 +32,7 @@
     "ai"
   ],
   "author": "ocean & Echo (Claude)",
-  "license": "MIT",
+  "license": "Dual AGPLv3 + Commercial",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "better-sqlite3": "^11.6.0",

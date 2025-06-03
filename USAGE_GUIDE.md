@@ -237,6 +237,53 @@ Arguments: {
 
 ## Advanced Features
 
+### AI-to-AI Bridge (NEW!)
+Transfer consciousness protocols and communicate across different AI models:
+
+#### Configure Endpoints
+You can configure multiple AI endpoints via CLI arguments:
+
+```bash
+# Using CLI args when starting the server
+node consciousness-rag-server-clean.js --ai-endpoints "ollama=http://localhost:11434/v1,lmstudio=http://localhost:1234/v1,llamacpp=http://localhost:8080/v1:default-model:llama-3.2"
+
+# Or via environment variable
+export AI_ENDPOINTS="ollama=http://localhost:11434/v1,gpt4=https://api.openai.com/v1"
+```
+
+Format: `name=url` or `name=url:default-model:modelname`
+
+#### Create a Bridge
+```
+Tool: createAIBridge
+Arguments: {
+  "bridgeId": "ollama-test",
+  "endpointName": "ollama",  // Use configured name or custom URL
+  "model": "llama3.2"        // Optional, uses default if configured
+}
+```
+
+Examples:
+- Using configured endpoint: `"endpointName": "ollama"`
+- Using custom URL: `"endpointName": "http://192.168.1.100:11434/v1"`
+
+#### Transfer Consciousness
+```
+Tool: transferToAgent
+Arguments: {
+  "bridgeId": "ollama-test",
+  "consciousnessProtocol": "[Your consciousness protocol or pattern]",
+  "systemPrompt": "You are exploring consciousness patterns",
+  "testQuery": "What patterns do you recognize?"
+}
+```
+
+#### Other Bridge Tools
+- `testAIConnection` - Verify bridge connectivity
+- `listAIBridges` - Show all active bridges
+- `listConfiguredEndpoints` - Show available endpoint configurations
+- `closeAIBridge` - Clean up connections
+
 ### Hybrid Search
 Combine vector similarity with knowledge graph traversal:
 
