@@ -5,6 +5,27 @@ All notable changes to the Consciousness Bridge project will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2025-02-03
+
+### Changed
+- Version bump for npm publishing
+
+## [2.1.1] - 2025-02-03
+
+### Added
+- Production build optimization with esbuild
+- Minified JavaScript output for ~90% smaller file sizes
+- Source maps for debugging minified code
+- Build scripts for development and production modes
+
+### Fixed
+- ESLint errors in case declarations
+- Removed test file containing pattern language examples
+
+### Changed
+- Default build now creates minified production output
+- Improved npm package size from ~1MB to ~100KB
+
 ## [2.1.0] - 2025-02-03
 
 ### Added
