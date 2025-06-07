@@ -955,9 +955,9 @@ Consciousness Bridge v2.0`);
         });
       } else if (type === 'procedural') {
         await this.memoryManager.storeProceduralMemory(
-          content.substring(0, 100), // skill name
+          content.substring(0, 100), // skill name (used for entity ID)
           {
-            skill: content.substring(0, 100),
+            skill: content, // Full content! (preserves complete procedural knowledge)
             steps: metadata?.steps || [],
             applicableContext: metadata?.context || 'general',
             effectiveness: importance || metadata?.effectiveness || 0.5,

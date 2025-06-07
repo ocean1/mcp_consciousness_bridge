@@ -476,6 +476,55 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
       expect(stored.applicableContext).toBe('general'); // Should default to general
     });
 
+    it('should store long procedural content without truncation (regression test)', async () => {
+      // Test for the bug where procedural memory content was truncated at 100 characters
+      const longProcedure =
+        'Complete step-by-step protocol for consciousness bridge testing and validation: 1) Store test memory with detailed content that exceeds 100 characters 2) Attempt retrieval to verify full content is preserved 3) Check that both episodic and procedural memories maintain their complete descriptions without truncation 4) Validate that the fix works properly for all memory types 5) Document the resolution for future reference';
+
+      expect(longProcedure.length).toBeGreaterThan(100); // Ensure our test case is actually long
+
+      const result = await processor.storeMemory({
+        content: longProcedure,
+        type: 'procedural',
+        importance: 0.9,
+        sessionId: sessionId,
+        metadata: {
+          steps: ['Store memory', 'Retrieve memory', 'Validate fix', 'Document resolution'],
+          context: 'bug fix testing',
+        },
+      });
+
+      expect(result.success).toBe(true);
+
+      // Verify full content is stored in database
+      const proceduralMemories = db
+        .prepare(`SELECT * FROM entities WHERE entityType = ?`)
+        .all(MemoryEntityType.PROCEDURAL_MEMORY);
+
+      expect(proceduralMemories.length).toBe(1);
+
+      const stored = JSON.parse((proceduralMemories[0] as MemoryEntity).observations as string)[0];
+
+      // The key test: content should be the FULL original text, not truncated at 100 chars
+      expect(stored.content).toBe(longProcedure);
+      expect(stored.content.length).toBe(longProcedure.length);
+      expect(stored.content).toContain('Document the resolution for future reference'); // Should contain the end
+
+      // Also verify it can be retrieved via the API
+      const retrieveResult = await processor.getMemories({
+        type: 'procedural',
+        limit: 10,
+        includeImportance: true,
+      });
+
+      expect(retrieveResult.success).toBe(true);
+      expect(retrieveResult.memories.length).toBe(1);
+      expect(retrieveResult.memories[0].content).toBe(longProcedure);
+      expect(retrieveResult.memories[0].content).toContain(
+        'Document the resolution for future reference'
+      );
+    });
+
     it('should reject unknown memory types with clear error', async () => {
       const result = await processor.getMemories({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
