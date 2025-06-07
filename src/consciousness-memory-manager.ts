@@ -457,7 +457,7 @@ export class ConsciousnessMemoryManager {
         content: skill,
         timestamp: new Date().toISOString(),
         sessionId: this.sessionId,
-        procedureSteps: attributes.steps,
+        steps: attributes.steps,
         applicableContext: attributes.applicableContext,
         effectiveness: attributes.effectiveness,
       },

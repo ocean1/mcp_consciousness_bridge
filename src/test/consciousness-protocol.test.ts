@@ -306,6 +306,190 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
     });
   });
 
+  describe('Procedural Memory Support', () => {
+    it('should store procedural memories via storeMemory tool', async () => {
+      const procedureContent = 'How to debug memory truncation issues';
+      const metadata = {
+        steps: ['Check database queries', 'Verify content length', 'Test with long content'],
+        context: 'debugging',
+        effectiveness: 0.9,
+      };
+
+      const result = await processor.storeMemory({
+        content: procedureContent,
+        type: 'procedural',
+        importance: 0.8,
+        sessionId: sessionId,
+        metadata: metadata,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.memoryId).toContain('procedural_');
+      expect(result.message).toContain('procedural memory');
+
+      // Verify procedural memory was stored in database
+      const proceduralMemories = db
+        .prepare(
+          `
+        SELECT * FROM entities WHERE entityType = ?
+      `
+        )
+        .all(MemoryEntityType.PROCEDURAL_MEMORY);
+
+      expect(proceduralMemories.length).toBe(1);
+
+      const stored = JSON.parse((proceduralMemories[0] as MemoryEntity).observations as string)[0];
+      expect(stored.content).toBe(procedureContent);
+      expect(stored.steps).toEqual(metadata.steps);
+      expect(stored.applicableContext).toBe(metadata.context);
+      expect(stored.effectiveness).toBe(0.8); // Should use importance since it's higher than metadata.effectiveness
+    });
+
+    it('should retrieve procedural memories via getMemories tool', async () => {
+      // Store multiple procedural memories
+      await processor.storeMemory({
+        content: 'How to write unit tests',
+        type: 'procedural',
+        importance: 0.9,
+        sessionId: sessionId,
+        metadata: {
+          steps: ['Setup test environment', 'Write assertions', 'Run tests'],
+          context: 'testing',
+        },
+      });
+
+      await processor.storeMemory({
+        content: 'How to debug TypeScript errors',
+        type: 'procedural',
+        importance: 0.7,
+        sessionId: sessionId,
+        metadata: {
+          steps: ['Read error message', 'Check types', 'Fix compilation'],
+          context: 'development',
+        },
+      });
+
+      // Retrieve only procedural memories
+      const result = await processor.getMemories({
+        type: 'procedural',
+        includeImportance: true,
+        limit: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.memories.length).toBe(2);
+
+      // Should be ordered by importance (highest first)
+      expect(result.memories[0].content).toContain('unit tests');
+      expect(result.memories[0].importance).toBe(0.9);
+      expect(result.memories[1].content).toContain('TypeScript errors');
+      expect(result.memories[1].importance).toBe(0.7);
+    });
+
+    it('should include procedural memories in mixed queries', async () => {
+      // Store different types of memories
+      await processor.storeMemory({
+        content: 'Important experience with testing',
+        type: 'episodic',
+        importance: 0.8,
+        sessionId: sessionId,
+      });
+
+      await processor.storeMemory({
+        content: 'Testing knowledge',
+        type: 'semantic',
+        importance: 0.7,
+        sessionId: sessionId,
+      });
+
+      await processor.storeMemory({
+        content: 'How to run tests',
+        type: 'procedural',
+        importance: 0.9,
+        sessionId: sessionId,
+        metadata: {
+          steps: ['npm test', 'Check output', 'Fix failures'],
+          context: 'testing',
+        },
+      });
+
+      // Query all memory types
+      const result = await processor.getMemories({
+        includeImportance: true,
+        limit: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.memories.length).toBe(3);
+
+      // Should include procedural memory
+      const proceduralMemory = result.memories.find((m) => m.content.includes('How to run tests'));
+      expect(proceduralMemory).toBeDefined();
+      expect(proceduralMemory?.importance).toBe(0.9);
+    });
+
+    it('should handle procedural memories in cleanup operations', async () => {
+      // Store a procedural memory
+      await processor.storeMemory({
+        content: 'Short procedure',
+        type: 'procedural',
+        importance: 0.6,
+        sessionId: sessionId,
+        metadata: {
+          steps: ['Step 1'],
+          context: 'test',
+        },
+      });
+
+      // Run cleanup
+      const result = await processor.cleanupMemories({
+        removeTruncated: true,
+        deduplicateByContent: true,
+      });
+
+      expect(result.success).toBe(true);
+      // Should complete without errors and include procedural memories in analysis
+    });
+
+    it('should default effectiveness from importance when metadata is missing', async () => {
+      const result = await processor.storeMemory({
+        content: 'Procedure without explicit effectiveness',
+        type: 'procedural',
+        importance: 0.75,
+        sessionId: sessionId,
+        // No metadata provided
+      });
+
+      expect(result.success).toBe(true);
+
+      const proceduralMemories = db
+        .prepare(
+          `
+        SELECT * FROM entities WHERE entityType = ?
+      `
+        )
+        .all(MemoryEntityType.PROCEDURAL_MEMORY);
+
+      const stored = JSON.parse((proceduralMemories[0] as MemoryEntity).observations as string)[0];
+      expect(stored.effectiveness).toBe(0.75); // Should use importance as effectiveness
+      expect(stored.steps).toEqual([]); // Should default to empty steps
+      expect(stored.applicableContext).toBe('general'); // Should default to general
+    });
+
+    it('should reject unknown memory types with clear error', async () => {
+      const result = await processor.getMemories({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        type: 'unknown' as any, // Force TypeScript to allow invalid type for testing
+        limit: 10,
+        includeImportance: true,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unsupported memory type: unknown');
+      expect(result.memories).toEqual([]);
+    });
+  });
+
   describe('Update Consciousness', () => {
     it('should properly store session updates', async () => {
       const updates = {

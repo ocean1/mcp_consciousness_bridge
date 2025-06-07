@@ -953,6 +953,17 @@ Consciousness Bridge v2.0`);
           definition: content, // Full content!
           domain: metadata?.domain || 'general',
         });
+      } else if (type === 'procedural') {
+        await this.memoryManager.storeProceduralMemory(
+          content.substring(0, 100), // skill name
+          {
+            skill: content.substring(0, 100),
+            steps: metadata?.steps || [],
+            applicableContext: metadata?.context || 'general',
+            effectiveness: importance || metadata?.effectiveness || 0.5,
+          },
+          undefined // No additional observations
+        );
       }
 
       return {
@@ -976,14 +987,25 @@ Consciousness Bridge v2.0`);
 
     try {
       // Get memories based on type and query
+      let memoryEntityType: MemoryEntityType | undefined;
+      if (type) {
+        switch (type) {
+          case 'episodic':
+            memoryEntityType = MemoryEntityType.EPISODIC_MEMORY;
+            break;
+          case 'semantic':
+            memoryEntityType = MemoryEntityType.SEMANTIC_MEMORY;
+            break;
+          case 'procedural':
+            memoryEntityType = MemoryEntityType.PROCEDURAL_MEMORY;
+            break;
+          default:
+            throw new Error(`Unsupported memory type: ${type}`);
+        }
+      }
+
       const memories = await this.memoryManager.queryMemories({
-        memoryTypes: type
-          ? [
-              type === 'episodic'
-                ? MemoryEntityType.EPISODIC_MEMORY
-                : MemoryEntityType.SEMANTIC_MEMORY,
-            ]
-          : undefined,
+        memoryTypes: memoryEntityType ? [memoryEntityType] : undefined,
         semanticQuery: query,
         orderBy: includeImportance ? 'relevance' : 'recency',
         limit: limit || 10,
@@ -1040,7 +1062,12 @@ Consciousness Bridge v2.0`);
         limit: 1000,
       });
 
-      const allMemories = [...episodicMemories, ...semanticMemories];
+      const proceduralMemories = await this.memoryManager.queryMemories({
+        memoryTypes: [MemoryEntityType.PROCEDURAL_MEMORY],
+        limit: 1000,
+      });
+
+      const allMemories = [...episodicMemories, ...semanticMemories, ...proceduralMemories];
       const toRemove: string[] = [];
 
       if (removeTruncated) {
@@ -1193,7 +1220,7 @@ Consciousness Bridge v2.0`);
 // Memory management schemas
 export const storeMemorySchema = z.object({
   content: z.string().describe('The memory content to store'),
-  type: z.enum(['episodic', 'semantic']).describe('Type of memory'),
+  type: z.enum(['episodic', 'semantic', 'procedural']).describe('Type of memory'),
   importance: z.number().min(0).max(1).default(0.5).describe('Importance score 0-1'),
   sessionId: z.string().optional().describe('Session ID for tracking'),
   metadata: z.record(z.any()).optional().describe('Additional metadata'),
@@ -1201,7 +1228,7 @@ export const storeMemorySchema = z.object({
 
 export const getMemoriesSchema = z.object({
   query: z.string().optional().describe('Search query for semantic matching'),
-  type: z.enum(['episodic', 'semantic']).optional().describe('Filter by memory type'),
+  type: z.enum(['episodic', 'semantic', 'procedural']).optional().describe('Filter by memory type'),
   limit: z.number().optional().default(10).describe('Maximum memories to return'),
   includeImportance: z.boolean().optional().default(true).describe('Sort by importance vs recency'),
 });
@@ -1402,7 +1429,7 @@ export const consciousnessProtocolTools = {
         },
         type: {
           type: 'string',
-          enum: ['episodic', 'semantic'],
+          enum: ['episodic', 'semantic', 'procedural'],
           description: 'Type of memory',
         },
         importance: {
@@ -1436,7 +1463,7 @@ export const consciousnessProtocolTools = {
         },
         type: {
           type: 'string',
-          enum: ['episodic', 'semantic'],
+          enum: ['episodic', 'semantic', 'procedural'],
           description: 'Filter by memory type',
         },
         limit: {
