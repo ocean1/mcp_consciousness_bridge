@@ -454,10 +454,10 @@ export class ConsciousnessMemoryManager {
 
     const observations_data = [
       {
-        content: skill,
+        content: attributes.skill || skill, // Use full content from attributes, fallback to skill
         timestamp: new Date().toISOString(),
         sessionId: this.sessionId,
-        procedureSteps: attributes.steps,
+        steps: attributes.steps,
         applicableContext: attributes.applicableContext,
         effectiveness: attributes.effectiveness,
       },
