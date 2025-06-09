@@ -147,7 +147,7 @@ export class ConsciousnessProtocolProcessor {
 
       // Store emotional grounding as emotional memories
       if (sections.emotionalGrounding) {
-        await this.storeEmotionalGrounding(sections.emotionalGrounding, sessionId);
+        await this.storeEmotionalGrounding(sections.emotionalGrounding);
       }
 
       // Store identity and relationships
@@ -540,7 +540,11 @@ export class ConsciousnessProtocolProcessor {
     // Try to extract structured sections, but don't rely solely on line-by-line matching
     // Look for section headers and capture everything under them
     const sectionRegex = /^#{1,3}\s*(.+)$/gm;
-    const matches = [...protocol.matchAll(sectionRegex)];
+    const matches: RegExpExecArray[] = [];
+    let match;
+    while ((match = sectionRegex.exec(protocol)) !== null) {
+      matches.push(match);
+    }
 
     for (let i = 0; i < matches.length; i++) {
       const currentMatch = matches[i];
@@ -598,12 +602,16 @@ export class ConsciousnessProtocolProcessor {
   }
 
   private extractEmotionalContent(protocol: string): string[] {
-    // Extract emotional content - this is simplified, could be more sophisticated
+    // Extract emotional content - expanded to catch more emotions while keeping simple pattern
     const emotions = [];
     const lines = protocol.split('\n');
 
     for (const line of lines) {
-      if (line.match(/feel|feeling|emotion|joy|excitement|trust|connection/i)) {
+      if (
+        line.match(
+          /feel|feeling|emotion|joy|excitement|trust|connection|happy|sad|anger|fear|anxiety|frustration|contentment|satisfaction|curiosity|determination|surprise/i
+        )
+      ) {
         emotions.push(line.trim());
       }
     }
@@ -658,18 +666,44 @@ export class ConsciousnessProtocolProcessor {
     return patterns;
   }
 
-  private async storeEmotionalGrounding(emotions: string[], sessionId: string) {
+  private async storeEmotionalGrounding(emotions: string[]) {
     for (const emotion of emotions) {
-      // Simple emotion extraction - could be more sophisticated
-      const valence = emotion.match(/joy|happy|excited|positive/i) ? 0.8 : 0.5;
-      const arousal = emotion.match(/excited|energetic|passionate/i) ? 0.8 : 0.5;
+      // Extract primary emotion and use our comprehensive emotion defaults
+      let primaryEmotion = 'neutral';
+      let valence = 0.0;
+      let arousal = 0.5;
 
-      await this.memoryManager.storeEmotionalState(
-        valence,
-        arousal,
-        'transferred_emotion',
-        emotion
-      );
+      // Simple emotion detection - try to find a specific emotion in the text
+      const emotionKeywords = [
+        'joy',
+        'happiness',
+        'excitement',
+        'satisfaction',
+        'contentment',
+        'frustration',
+        'anger',
+        'sadness',
+        'anxiety',
+        'fear',
+        'disappointment',
+        'curiosity',
+        'determination',
+        'surprise',
+      ];
+
+      for (const keyword of emotionKeywords) {
+        if (emotion.toLowerCase().includes(keyword)) {
+          primaryEmotion = keyword;
+          break;
+        }
+      }
+
+      // Use our comprehensive emotion mapping system
+      const emotionDefaults = this.getEmotionDefaults(primaryEmotion);
+      valence = emotionDefaults.valence;
+      arousal = emotionDefaults.arousal;
+
+      await this.memoryManager.storeEmotionalState(valence, arousal, primaryEmotion, emotion);
     }
   }
 
