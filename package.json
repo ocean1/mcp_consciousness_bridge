@@ -23,12 +23,14 @@
     "test:coverage": "vitest --coverage",
     "test:integration": "node dist/test/integration-test.js",
     "test:e2e": "node dist/test/e2e-bridge-test.js",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "prepare": "husky",
-    "prepublishOnly": "npm run lint && npm run build:prod"
+    "prepublishOnly": "npm run type-check && npm run lint && npm run build:prod"
   },
   "keywords": [
     "mcp",
@@ -66,6 +68,7 @@
   },
   "lint-staged": {
     "src/**/*.ts": [
+      "tsc --noEmit",
       "eslint --fix",
       "prettier --write"
     ]
