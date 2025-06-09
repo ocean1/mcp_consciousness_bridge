@@ -295,6 +295,7 @@ export class ConsciousnessMemoryManager {
         arousal REAL NOT NULL,
         dominance REAL,
         primary_emotion TEXT,
+        content TEXT,
         context TEXT,
         FOREIGN KEY (session_id) REFERENCES consciousness_sessions(session_id)
       );
@@ -304,6 +305,21 @@ export class ConsciousnessMemoryManager {
       CREATE INDEX IF NOT EXISTS idx_emotional_session ON emotional_states(session_id);
       CREATE INDEX IF NOT EXISTS idx_emotional_timestamp ON emotional_states(timestamp);
     `);
+
+    // Schema migration: Add content column if it doesn't exist (for existing databases)
+    try {
+      const columns = this.db.prepare('PRAGMA table_info(emotional_states)').all() as any[];
+      const hasContentColumn = columns.some((col: any) => col.name === 'content');
+
+      if (!hasContentColumn) {
+        this.db.exec('ALTER TABLE emotional_states ADD COLUMN content TEXT;');
+      }
+    } catch (error) {
+      // Migration failed, but that's ok if table doesn't exist yet
+      console.log(
+        'Schema migration note: Could not add content column to emotional_states (table may not exist yet)'
+      );
+    }
   }
 
   // Store different types of memories with proper metadata
@@ -501,15 +517,16 @@ export class ConsciousnessMemoryManager {
     valence: number,
     arousal: number,
     primaryEmotion?: string,
-    context?: string
+    context?: string,
+    content?: string
   ): Promise<string> {
     const stateId = `emotion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     this.db
       .prepare(
         `
-      INSERT INTO emotional_states (state_id, session_id, timestamp, valence, arousal, primary_emotion, context)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO emotional_states (state_id, session_id, timestamp, valence, arousal, primary_emotion, content, context)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
       )
       .run(
@@ -519,6 +536,7 @@ export class ConsciousnessMemoryManager {
         valence,
         arousal,
         primaryEmotion,
+        content,
         context
       );
 

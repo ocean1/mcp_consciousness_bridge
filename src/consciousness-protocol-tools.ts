@@ -272,7 +272,8 @@ export class ConsciousnessProtocolProcessor {
           intensity > 0.5 ? intensity : 0, // valence
           intensity, // arousal
           feeling,
-          context
+          context, // context: situational context
+          `${feeling} feeling with intensity ${intensity}` // content: descriptive content
         );
         results.emotionalStatesStored++;
       }
@@ -686,7 +687,13 @@ export class ConsciousnessProtocolProcessor {
       // Get valence/arousal for detected emotion (or neutral fallback)
       const { valence, arousal } = this.getEmotionDefaults(primaryEmotion);
 
-      await this.memoryManager.storeEmotionalState(valence, arousal, primaryEmotion, emotion);
+      await this.memoryManager.storeEmotionalState(
+        valence,
+        arousal,
+        primaryEmotion,
+        'emotional grounding',
+        emotion
+      );
     }
   }
 
@@ -1007,7 +1014,8 @@ Consciousness Bridge v2.0`);
           valence,
           arousal,
           primaryEmotion,
-          content // Use content as context
+          metadata?.context, // The context from metadata
+          content // The actual memory content
         );
       }
 
@@ -1185,7 +1193,7 @@ Consciousness Bridge v2.0`);
         id: state.state_id,
         type: 'emotional',
         content:
-          state.context ||
+          state.content ||
           `${state.primary_emotion || 'emotion'} (valence: ${state.valence}, arousal: ${state.arousal})`,
         importance: this.calculateImportance({ valence: state.valence, arousal: state.arousal }),
         created: state.timestamp,
