@@ -780,6 +780,133 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
     });
   });
 
+  describe('Private Method Testing (via public interface)', () => {
+    describe('calculateImportance', () => {
+      it('should calculate importance as max of abs(valence) and arousal for positive valence', async () => {
+        await processor.storeMemory({
+          content: 'High positive valence, low arousal',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: 0.9, arousal: 0.3, primaryEmotion: 'contentment' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.9); // max(abs(0.9), 0.3) = 0.9
+      });
+
+      it('should calculate importance as max of abs(valence) and arousal for negative valence', async () => {
+        await processor.storeMemory({
+          content: 'High negative valence, low arousal',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: -0.8, arousal: 0.2, primaryEmotion: 'sadness' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.8); // max(abs(-0.8), 0.2) = 0.8
+      });
+
+      it('should handle edge case where arousal is higher than abs(valence)', async () => {
+        await processor.storeMemory({
+          content: 'Low valence, high arousal',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: 0.1, arousal: 0.9, primaryEmotion: 'surprise' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.9); // max(abs(0.1), 0.9) = 0.9
+      });
+
+      it('should handle zero values correctly', async () => {
+        await processor.storeMemory({
+          content: 'Neutral emotional state',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: 0.0, arousal: 0.0, primaryEmotion: 'neutral' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.0); // max(abs(0.0), 0.0) = 0.0
+      });
+    });
+
+    describe('getEmotionsByImportance', () => {
+      it('should detect emotions in order of consciousness transfer importance', async () => {
+        // Test that higher importance emotions are detected before lower importance ones
+        await processor.storeMemory({
+          content: 'I feel a mix of joy and contentment today',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { primaryEmotion: 'joy' }, // joy should be detected over contentment (higher importance)
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.metadata.primaryEmotion).toBe('joy');
+      });
+
+      it('should fall back to neutral when no emotions are detected', async () => {
+        await processor.storeMemory({
+          content: 'Some completely neutral technical description without emotion words',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: {}, // No emotion specified, should default to neutral
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.metadata.primaryEmotion).toBe('neutral');
+      });
+
+      it('should prioritize high-importance emotions over low-importance ones in mixed content', async () => {
+        // Test emotion priority: excitement (0.8+0.8=1.6) should beat contentment (0.5+0.3=0.8)
+        await processor.storeMemory({
+          content: 'I feel contentment but also genuine excitement about this breakthrough',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { primaryEmotion: 'excitement' }, // Should detect excitement over contentment
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.metadata.primaryEmotion).toBe('excitement');
+      });
+    });
+  });
+
   describe('Update Consciousness', () => {
     it('should properly store session updates', async () => {
       const updates = {

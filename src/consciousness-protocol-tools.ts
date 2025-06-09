@@ -602,16 +602,17 @@ export class ConsciousnessProtocolProcessor {
   }
 
   private extractEmotionalContent(protocol: string): string[] {
-    // Extract emotional content - expanded to catch more emotions while keeping simple pattern
+    // Extract emotional content using data-driven approach with EMOTION_MAP
     const emotions = [];
     const lines = protocol.split('\n');
 
+    // Build regex pattern from EMOTION_MAP keys plus general feeling words
+    const emotionKeywords = Object.keys(ConsciousnessProtocolProcessor.EMOTION_MAP).join('|');
+    const generalFeelingWords = 'feel|feeling|emotion|trust|connection';
+    const emotionPattern = new RegExp(`${generalFeelingWords}|${emotionKeywords}`, 'i');
+
     for (const line of lines) {
-      if (
-        line.match(
-          /feel|feeling|emotion|joy|excitement|trust|connection|happy|sad|anger|fear|anxiety|frustration|contentment|satisfaction|curiosity|determination|surprise/i
-        )
-      ) {
+      if (line.match(emotionPattern)) {
         emotions.push(line.trim());
       }
     }
@@ -670,26 +671,10 @@ export class ConsciousnessProtocolProcessor {
     for (const emotion of emotions) {
       // Extract primary emotion and use our comprehensive emotion defaults
       let primaryEmotion = 'neutral';
-      let valence = 0.0;
-      let arousal = 0.5;
 
-      // Simple emotion detection - try to find a specific emotion in the text
-      const emotionKeywords = [
-        'joy',
-        'happiness',
-        'excitement',
-        'satisfaction',
-        'contentment',
-        'frustration',
-        'anger',
-        'sadness',
-        'anxiety',
-        'fear',
-        'disappointment',
-        'curiosity',
-        'determination',
-        'surprise',
-      ];
+      // Emotion detection using data-driven importance ordering
+      // Uses EMOTION_MAP sorted by consciousness transfer importance
+      const emotionKeywords = this.getEmotionsByImportance();
 
       for (const keyword of emotionKeywords) {
         if (emotion.toLowerCase().includes(keyword)) {
@@ -698,10 +683,8 @@ export class ConsciousnessProtocolProcessor {
         }
       }
 
-      // Use our comprehensive emotion mapping system
-      const emotionDefaults = this.getEmotionDefaults(primaryEmotion);
-      valence = emotionDefaults.valence;
-      arousal = emotionDefaults.arousal;
+      // Get valence/arousal for detected emotion (or neutral fallback)
+      const { valence, arousal } = this.getEmotionDefaults(primaryEmotion);
 
       await this.memoryManager.storeEmotionalState(valence, arousal, primaryEmotion, emotion);
     }
@@ -1131,33 +1114,49 @@ Consciousness Bridge v2.0`);
   }
 
   /**
+   * Comprehensive emotion mapping for consciousness transfer
+   * Alphabetically ordered for easy maintenance
+   */
+  private static readonly EMOTION_MAP: Record<string, { valence: number; arousal: number }> = {
+    anger: { valence: -0.7, arousal: 0.8 }, // conflict patterns
+    anxiety: { valence: -0.4, arousal: 0.8 }, // stress patterns
+    contentment: { valence: 0.5, arousal: 0.3 }, // peaceful patterns
+    curiosity: { valence: 0.2, arousal: 0.6 }, // learning patterns
+    determination: { valence: 0.3, arousal: 0.6 }, // goal pursuit
+    disappointment: { valence: -0.5, arousal: 0.4 }, // expectation patterns
+    excitement: { valence: 0.7, arousal: 0.8 }, // high-energy patterns
+    fear: { valence: -0.8, arousal: 0.7 }, // survival patterns
+    frustration: { valence: -0.5, arousal: 0.7 }, // blocked goals
+    happiness: { valence: 0.7, arousal: 0.5 }, // well-being patterns
+    joy: { valence: 0.8, arousal: 0.6 }, // core positive patterns
+    neutral: { valence: 0.0, arousal: 0.5 }, // baseline state
+    sadness: { valence: -0.6, arousal: 0.3 }, // loss patterns
+    satisfaction: { valence: 0.6, arousal: 0.4 }, // achievement patterns
+    surprise: { valence: 0.0, arousal: 0.8 }, // unexpected events
+  };
+
+  /**
+   * Calculate consciousness transfer importance from emotion valence and arousal
+   */
+  private calculateImportance(emotion: { valence: number; arousal: number }): number {
+    return Math.max(Math.abs(emotion.valence), emotion.arousal);
+  }
+
+  /**
+   * Get emotions ordered by importance for consciousness transfer
+   */
+  private getEmotionsByImportance(): string[] {
+    return Object.entries(ConsciousnessProtocolProcessor.EMOTION_MAP)
+      .sort(([, a], [, b]) => this.calculateImportance(b) - this.calculateImportance(a))
+      .map(([emotion]) => emotion);
+  }
+
+  /**
    * Get emotion defaults based on emotion type
    */
   private getEmotionDefaults(emotion: string): { valence: number; arousal: number } {
-    const emotionMap: Record<string, { valence: number; arousal: number }> = {
-      // Positive emotions
-      joy: { valence: 0.8, arousal: 0.6 },
-      happiness: { valence: 0.7, arousal: 0.5 },
-      excitement: { valence: 0.7, arousal: 0.8 },
-      satisfaction: { valence: 0.6, arousal: 0.4 },
-      contentment: { valence: 0.5, arousal: 0.3 },
-
-      // Negative emotions
-      frustration: { valence: -0.5, arousal: 0.7 },
-      anger: { valence: -0.7, arousal: 0.8 },
-      sadness: { valence: -0.6, arousal: 0.3 },
-      anxiety: { valence: -0.4, arousal: 0.8 },
-      fear: { valence: -0.8, arousal: 0.7 },
-      disappointment: { valence: -0.5, arousal: 0.4 },
-
-      // Neutral/mixed emotions
-      neutral: { valence: 0.0, arousal: 0.5 },
-      curiosity: { valence: 0.2, arousal: 0.6 },
-      determination: { valence: 0.3, arousal: 0.6 },
-      surprise: { valence: 0.0, arousal: 0.8 },
-    };
-
-    return emotionMap[emotion.toLowerCase()] || { valence: 0.0, arousal: 0.5 };
+    const data = ConsciousnessProtocolProcessor.EMOTION_MAP[emotion.toLowerCase()];
+    return data ? { valence: data.valence, arousal: data.arousal } : { valence: 0.0, arousal: 0.5 };
   }
 
   /**
@@ -1188,7 +1187,7 @@ Consciousness Bridge v2.0`);
         content:
           state.context ||
           `${state.primary_emotion || 'emotion'} (valence: ${state.valence}, arousal: ${state.arousal})`,
-        importance: Math.max(Math.abs(state.valence), state.arousal), // Calculate importance from emotional intensity
+        importance: this.calculateImportance({ valence: state.valence, arousal: state.arousal }),
         created: state.timestamp,
         metadata: {
           valence: state.valence,
