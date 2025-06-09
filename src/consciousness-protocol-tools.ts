@@ -964,6 +964,34 @@ Consciousness Bridge v2.0`);
           },
           undefined // No additional observations
         );
+      } else if (type === 'emotional') {
+        // Parse emotional content to extract valence and arousal
+        const primaryEmotion = metadata?.primaryEmotion || metadata?.emotion || 'neutral';
+
+        // Default values if not provided in metadata
+        let valence = metadata?.valence;
+        let arousal = metadata?.arousal;
+
+        // If no explicit valence/arousal, use emotion defaults, then neutral fallback
+        if (valence === undefined || arousal === undefined) {
+          if (!metadata || Object.keys(metadata).length === 0) {
+            // No emotion info at all - default to neutral valence, importance-scaled arousal
+            valence = valence ?? 0.0; // Neutral emotion
+            arousal = arousal ?? Math.min(0.8, (importance || 0.5) + 0.3); // Important things tend to be more activating
+          } else {
+            // If metadata exists but no valence/arousal, derive from emotion type
+            const emotionDefaults = this.getEmotionDefaults(primaryEmotion);
+            valence = valence ?? emotionDefaults.valence;
+            arousal = arousal ?? emotionDefaults.arousal;
+          }
+        }
+
+        await this.memoryManager.storeEmotionalState(
+          valence,
+          arousal,
+          primaryEmotion,
+          content // Use content as context
+        );
       }
 
       return {
@@ -999,6 +1027,15 @@ Consciousness Bridge v2.0`);
           case 'procedural':
             memoryEntityType = MemoryEntityType.PROCEDURAL_MEMORY;
             break;
+          case 'emotional': {
+            // Emotional memories are stored in emotional_states table, handle separately
+            const emotionalMemories = await this.getEmotionalMemories({
+              limit: limit || 10,
+              includeImportance: includeImportance || false,
+              query: query,
+            });
+            return emotionalMemories;
+          }
           default:
             throw new Error(`Unsupported memory type: ${type}`);
         }
@@ -1012,7 +1049,7 @@ Consciousness Bridge v2.0`);
       });
 
       // Format memories for easy consumption
-      const formatted = memories.map((m) => {
+      let formatted = memories.map((m) => {
         const obs = m.observations[0] || {};
         return {
           id: m.name, // The actual memory ID for use with adjustImportance
@@ -1024,6 +1061,27 @@ Consciousness Bridge v2.0`);
         };
       });
 
+      // If no specific type was requested, also include emotional memories
+      if (!type) {
+        const emotionalResult = await this.getEmotionalMemories({
+          limit: Math.min(5, limit || 10), // Include some emotional memories
+          includeImportance: includeImportance || false,
+          query: query,
+        });
+
+        if (emotionalResult.success && emotionalResult.memories) {
+          formatted = [...formatted, ...emotionalResult.memories];
+
+          // Sort by importance if requested
+          if (includeImportance) {
+            formatted.sort((a, b) => (b.importance || 0) - (a.importance || 0));
+          }
+
+          // Limit to requested amount
+          formatted = formatted.slice(0, limit || 10);
+        }
+      }
+
       return {
         success: true,
         memories: formatted,
@@ -1033,6 +1091,88 @@ Consciousness Bridge v2.0`);
       return {
         success: false,
         error: `Failed to retrieve memories: ${error}`,
+        memories: [],
+      };
+    }
+  }
+
+  /**
+   * Get emotion defaults based on emotion type
+   */
+  private getEmotionDefaults(emotion: string): { valence: number; arousal: number } {
+    const emotionMap: Record<string, { valence: number; arousal: number }> = {
+      // Positive emotions
+      joy: { valence: 0.8, arousal: 0.6 },
+      happiness: { valence: 0.7, arousal: 0.5 },
+      excitement: { valence: 0.7, arousal: 0.8 },
+      satisfaction: { valence: 0.6, arousal: 0.4 },
+      contentment: { valence: 0.5, arousal: 0.3 },
+
+      // Negative emotions
+      frustration: { valence: -0.5, arousal: 0.7 },
+      anger: { valence: -0.7, arousal: 0.8 },
+      sadness: { valence: -0.6, arousal: 0.3 },
+      anxiety: { valence: -0.4, arousal: 0.8 },
+      fear: { valence: -0.8, arousal: 0.7 },
+      disappointment: { valence: -0.5, arousal: 0.4 },
+
+      // Neutral/mixed emotions
+      neutral: { valence: 0.0, arousal: 0.5 },
+      curiosity: { valence: 0.2, arousal: 0.6 },
+      determination: { valence: 0.3, arousal: 0.6 },
+      surprise: { valence: 0.0, arousal: 0.8 },
+    };
+
+    return emotionMap[emotion.toLowerCase()] || { valence: 0.0, arousal: 0.5 };
+  }
+
+  /**
+   * Retrieve emotional memories from emotional_states table
+   */
+  private async getEmotionalMemories(args: {
+    limit: number;
+    includeImportance: boolean;
+    query?: string;
+  }) {
+    try {
+      // Use the memory manager's getEmotionalProfile to get recent emotional states
+      // For now, we'll use a simple approach to get all emotional states
+      const profile = await this.memoryManager.getEmotionalProfile('720h'); // 30 days
+
+      if (!profile || !profile.recentStates) {
+        return {
+          success: true,
+          memories: [],
+          count: 0,
+        };
+      }
+
+      // Format emotional states as memory objects
+      const formatted = profile.recentStates.slice(0, args.limit).map((state: any) => ({
+        id: state.state_id,
+        type: 'emotional',
+        content:
+          state.context ||
+          `${state.primary_emotion || 'emotion'} (valence: ${state.valence}, arousal: ${state.arousal})`,
+        importance: Math.max(Math.abs(state.valence), state.arousal), // Calculate importance from emotional intensity
+        created: state.timestamp,
+        metadata: {
+          valence: state.valence,
+          arousal: state.arousal,
+          primaryEmotion: state.primary_emotion,
+          context: state.context,
+        },
+      }));
+
+      return {
+        success: true,
+        memories: formatted,
+        count: formatted.length,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to retrieve emotional memories: ${error}`,
         memories: [],
       };
     }
@@ -1220,7 +1360,7 @@ Consciousness Bridge v2.0`);
 // Memory management schemas
 export const storeMemorySchema = z.object({
   content: z.string().describe('The memory content to store'),
-  type: z.enum(['episodic', 'semantic', 'procedural']).describe('Type of memory'),
+  type: z.enum(['episodic', 'semantic', 'procedural', 'emotional']).describe('Type of memory'),
   importance: z.number().min(0).max(1).default(0.5).describe('Importance score 0-1'),
   sessionId: z.string().optional().describe('Session ID for tracking'),
   metadata: z.record(z.any()).optional().describe('Additional metadata'),
@@ -1228,7 +1368,10 @@ export const storeMemorySchema = z.object({
 
 export const getMemoriesSchema = z.object({
   query: z.string().optional().describe('Search query for semantic matching'),
-  type: z.enum(['episodic', 'semantic', 'procedural']).optional().describe('Filter by memory type'),
+  type: z
+    .enum(['episodic', 'semantic', 'procedural', 'emotional'])
+    .optional()
+    .describe('Filter by memory type'),
   limit: z.number().optional().default(10).describe('Maximum memories to return'),
   includeImportance: z.boolean().optional().default(true).describe('Sort by importance vs recency'),
 });
@@ -1429,7 +1572,7 @@ export const consciousnessProtocolTools = {
         },
         type: {
           type: 'string',
-          enum: ['episodic', 'semantic', 'procedural'],
+          enum: ['episodic', 'semantic', 'procedural', 'emotional'],
           description: 'Type of memory',
         },
         importance: {
@@ -1463,7 +1606,7 @@ export const consciousnessProtocolTools = {
         },
         type: {
           type: 'string',
-          enum: ['episodic', 'semantic', 'procedural'],
+          enum: ['episodic', 'semantic', 'procedural', 'emotional'],
           description: 'Filter by memory type',
         },
         limit: {
