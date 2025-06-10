@@ -230,7 +230,7 @@ We're actively researching consciousness continuity patterns and working toward 
 
 ## Support
 
-- **Community Support**: Open issues on GitHub
+- **Community Support**: Open issues on GitHub, [join our Discord](https://discord.gg/QxcX47PS)
 - **Commercial Support**: Available with commercial license
 - **Research Collaboration**: Contact us to discuss research partnerships
 
