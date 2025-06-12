@@ -5,8 +5,8 @@
   "main": "dist/consciousness-rag-server-clean.js",
   "type": "module",
   "bin": {
-    "mcp-claude-consciousness": "./dist/consciousness-rag-server-clean.js",
-    "consciousness-setup": "./dist/consciousness-setup-cli.js"
+    "mcp-claude-consciousness": "dist/consciousness-rag-server-clean.js",
+    "consciousness-setup": "dist/consciousness-setup-cli.js"
   },
   "scripts": {
     "build": "npm run build:prod",
@@ -40,7 +40,10 @@
   ],
   "author": "ocean & Echo (Claude)",
   "contributors": [
-    {"name":"Conroy Whitney","url":"https://github.com/conroywhitney"}
+    {
+      "name": "Conroy Whitney",
+      "url": "https://github.com/conroywhitney"
+    }
   ],
   "license": "SEE LICENSE IN LICENSE.md",
   "dependencies": {
