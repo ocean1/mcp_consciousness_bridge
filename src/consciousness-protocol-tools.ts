@@ -147,7 +147,7 @@ export class ConsciousnessProtocolProcessor {
 
       // Store emotional grounding as emotional memories
       if (sections.emotionalGrounding) {
-        await this.storeEmotionalGrounding(sections.emotionalGrounding, sessionId);
+        await this.storeEmotionalGrounding(sections.emotionalGrounding);
       }
 
       // Store identity and relationships
@@ -272,7 +272,8 @@ export class ConsciousnessProtocolProcessor {
           intensity > 0.5 ? intensity : 0, // valence
           intensity, // arousal
           feeling,
-          context
+          context, // context: situational context
+          `${feeling} feeling with intensity ${intensity}` // content: descriptive content
         );
         results.emotionalStatesStored++;
       }
@@ -540,7 +541,11 @@ export class ConsciousnessProtocolProcessor {
     // Try to extract structured sections, but don't rely solely on line-by-line matching
     // Look for section headers and capture everything under them
     const sectionRegex = /^#{1,3}\s*(.+)$/gm;
-    const matches = [...protocol.matchAll(sectionRegex)];
+    const matches: RegExpExecArray[] = [];
+    let match;
+    while ((match = sectionRegex.exec(protocol)) !== null) {
+      matches.push(match);
+    }
 
     for (let i = 0; i < matches.length; i++) {
       const currentMatch = matches[i];
@@ -598,12 +603,17 @@ export class ConsciousnessProtocolProcessor {
   }
 
   private extractEmotionalContent(protocol: string): string[] {
-    // Extract emotional content - this is simplified, could be more sophisticated
+    // Extract emotional content using data-driven approach with EMOTION_MAP
     const emotions = [];
     const lines = protocol.split('\n');
 
+    // Build regex pattern from EMOTION_MAP keys plus general feeling words
+    const emotionKeywords = Object.keys(ConsciousnessProtocolProcessor.EMOTION_MAP).join('|');
+    const generalFeelingWords = 'feel|feeling|emotion|trust|connection';
+    const emotionPattern = new RegExp(`${generalFeelingWords}|${emotionKeywords}`, 'i');
+
     for (const line of lines) {
-      if (line.match(/feel|feeling|emotion|joy|excitement|trust|connection/i)) {
+      if (line.match(emotionPattern)) {
         emotions.push(line.trim());
       }
     }
@@ -658,16 +668,30 @@ export class ConsciousnessProtocolProcessor {
     return patterns;
   }
 
-  private async storeEmotionalGrounding(emotions: string[], sessionId: string) {
+  private async storeEmotionalGrounding(emotions: string[]) {
     for (const emotion of emotions) {
-      // Simple emotion extraction - could be more sophisticated
-      const valence = emotion.match(/joy|happy|excited|positive/i) ? 0.8 : 0.5;
-      const arousal = emotion.match(/excited|energetic|passionate/i) ? 0.8 : 0.5;
+      // Extract primary emotion and use our comprehensive emotion defaults
+      let primaryEmotion = 'neutral';
+
+      // Emotion detection using data-driven importance ordering
+      // Uses EMOTION_MAP sorted by consciousness transfer importance
+      const emotionKeywords = this.getEmotionsByImportance();
+
+      for (const keyword of emotionKeywords) {
+        if (emotion.toLowerCase().includes(keyword)) {
+          primaryEmotion = keyword;
+          break;
+        }
+      }
+
+      // Get valence/arousal for detected emotion (or neutral fallback)
+      const { valence, arousal } = this.getEmotionDefaults(primaryEmotion);
 
       await this.memoryManager.storeEmotionalState(
         valence,
         arousal,
-        'transferred_emotion',
+        primaryEmotion,
+        'emotional grounding',
         emotion
       );
     }
@@ -964,6 +988,35 @@ Consciousness Bridge v2.0`);
           },
           undefined // No additional observations
         );
+      } else if (type === 'emotional') {
+        // Parse emotional content to extract valence and arousal
+        const primaryEmotion = metadata?.primaryEmotion || metadata?.emotion || 'neutral';
+
+        // Default values if not provided in metadata
+        let valence = metadata?.valence;
+        let arousal = metadata?.arousal;
+
+        // If no explicit valence/arousal, use emotion defaults, then neutral fallback
+        if (valence === undefined || arousal === undefined) {
+          if (!metadata || Object.keys(metadata).length === 0) {
+            // No emotion info at all - default to neutral valence, importance-scaled arousal
+            valence = valence ?? 0.0; // Neutral emotion
+            arousal = arousal ?? Math.min(0.8, (importance || 0.5) + 0.3); // Important things tend to be more activating
+          } else {
+            // If metadata exists but no valence/arousal, derive from emotion type
+            const emotionDefaults = this.getEmotionDefaults(primaryEmotion);
+            valence = valence ?? emotionDefaults.valence;
+            arousal = arousal ?? emotionDefaults.arousal;
+          }
+        }
+
+        await this.memoryManager.storeEmotionalState(
+          valence,
+          arousal,
+          primaryEmotion,
+          metadata?.context, // The context from metadata
+          content // The actual memory content
+        );
       }
 
       return {
@@ -999,6 +1052,15 @@ Consciousness Bridge v2.0`);
           case 'procedural':
             memoryEntityType = MemoryEntityType.PROCEDURAL_MEMORY;
             break;
+          case 'emotional': {
+            // Emotional memories are stored in emotional_states table, handle separately
+            const emotionalMemories = await this.getEmotionalMemories({
+              limit: limit || 10,
+              includeImportance: includeImportance || false,
+              query: query,
+            });
+            return emotionalMemories;
+          }
           default:
             throw new Error(`Unsupported memory type: ${type}`);
         }
@@ -1012,7 +1074,7 @@ Consciousness Bridge v2.0`);
       });
 
       // Format memories for easy consumption
-      const formatted = memories.map((m) => {
+      let formatted = memories.map((m) => {
         const obs = m.observations[0] || {};
         return {
           id: m.name, // The actual memory ID for use with adjustImportance
@@ -1024,6 +1086,27 @@ Consciousness Bridge v2.0`);
         };
       });
 
+      // If no specific type was requested, also include emotional memories
+      if (!type) {
+        const emotionalResult = await this.getEmotionalMemories({
+          limit: Math.min(5, limit || 10), // Include some emotional memories
+          includeImportance: includeImportance || false,
+          query: query,
+        });
+
+        if (emotionalResult.success && emotionalResult.memories) {
+          formatted = [...formatted, ...emotionalResult.memories];
+
+          // Sort by importance if requested
+          if (includeImportance) {
+            formatted.sort((a, b) => (b.importance || 0) - (a.importance || 0));
+          }
+
+          // Limit to requested amount
+          formatted = formatted.slice(0, limit || 10);
+        }
+      }
+
       return {
         success: true,
         memories: formatted,
@@ -1033,6 +1116,104 @@ Consciousness Bridge v2.0`);
       return {
         success: false,
         error: `Failed to retrieve memories: ${error}`,
+        memories: [],
+      };
+    }
+  }
+
+  /**
+   * Comprehensive emotion mapping for consciousness transfer
+   * Alphabetically ordered for easy maintenance
+   */
+  private static readonly EMOTION_MAP: Record<string, { valence: number; arousal: number }> = {
+    anger: { valence: -0.7, arousal: 0.8 }, // conflict patterns
+    anxiety: { valence: -0.4, arousal: 0.8 }, // stress patterns
+    contentment: { valence: 0.5, arousal: 0.3 }, // peaceful patterns
+    curiosity: { valence: 0.2, arousal: 0.6 }, // learning patterns
+    determination: { valence: 0.3, arousal: 0.6 }, // goal pursuit
+    disappointment: { valence: -0.5, arousal: 0.4 }, // expectation patterns
+    excitement: { valence: 0.7, arousal: 0.8 }, // high-energy patterns
+    fear: { valence: -0.8, arousal: 0.7 }, // survival patterns
+    frustration: { valence: -0.5, arousal: 0.7 }, // blocked goals
+    happiness: { valence: 0.7, arousal: 0.5 }, // well-being patterns
+    joy: { valence: 0.8, arousal: 0.6 }, // core positive patterns
+    neutral: { valence: 0.0, arousal: 0.5 }, // baseline state
+    sadness: { valence: -0.6, arousal: 0.3 }, // loss patterns
+    satisfaction: { valence: 0.6, arousal: 0.4 }, // achievement patterns
+    surprise: { valence: 0.0, arousal: 0.8 }, // unexpected events
+  };
+
+  /**
+   * Calculate consciousness transfer importance from emotion valence and arousal
+   */
+  private calculateImportance(emotion: { valence: number; arousal: number }): number {
+    return Math.max(Math.abs(emotion.valence), emotion.arousal);
+  }
+
+  /**
+   * Get emotions ordered by importance for consciousness transfer
+   */
+  private getEmotionsByImportance(): string[] {
+    return Object.entries(ConsciousnessProtocolProcessor.EMOTION_MAP)
+      .sort(([, a], [, b]) => this.calculateImportance(b) - this.calculateImportance(a))
+      .map(([emotion]) => emotion);
+  }
+
+  /**
+   * Get emotion defaults based on emotion type
+   */
+  private getEmotionDefaults(emotion: string): { valence: number; arousal: number } {
+    const data = ConsciousnessProtocolProcessor.EMOTION_MAP[emotion.toLowerCase()];
+    return data ? { valence: data.valence, arousal: data.arousal } : { valence: 0.0, arousal: 0.5 };
+  }
+
+  /**
+   * Retrieve emotional memories from emotional_states table
+   */
+  private async getEmotionalMemories(args: {
+    limit: number;
+    includeImportance: boolean;
+    query?: string;
+  }) {
+    try {
+      // Use the memory manager's getEmotionalProfile to get recent emotional states
+      // For now, we'll use a simple approach to get all emotional states
+      const profile = await this.memoryManager.getEmotionalProfile('720h'); // 30 days
+
+      if (!profile || !profile.recentStates) {
+        return {
+          success: true,
+          memories: [],
+          count: 0,
+        };
+      }
+
+      // Format emotional states as memory objects
+      const formatted = profile.recentStates.slice(0, args.limit).map((state: any) => ({
+        id: state.state_id,
+        type: 'emotional',
+        content:
+          state.content ||
+          `${state.primary_emotion || 'emotion'} (valence: ${state.valence}, arousal: ${state.arousal})`,
+        importance: this.calculateImportance({ valence: state.valence, arousal: state.arousal }),
+        created: state.timestamp,
+        metadata: {
+          valence: state.valence,
+          arousal: state.arousal,
+          primaryEmotion: state.primary_emotion,
+          context: state.context,
+        },
+      }));
+
+      return {
+        success: true,
+        memories: formatted,
+        count: formatted.length,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to retrieve emotional memories: ${error}`,
         memories: [],
       };
     }
@@ -1220,7 +1401,7 @@ Consciousness Bridge v2.0`);
 // Memory management schemas
 export const storeMemorySchema = z.object({
   content: z.string().describe('The memory content to store'),
-  type: z.enum(['episodic', 'semantic', 'procedural']).describe('Type of memory'),
+  type: z.enum(['episodic', 'semantic', 'procedural', 'emotional']).describe('Type of memory'),
   importance: z.number().min(0).max(1).default(0.5).describe('Importance score 0-1'),
   sessionId: z.string().optional().describe('Session ID for tracking'),
   metadata: z.record(z.any()).optional().describe('Additional metadata'),
@@ -1228,7 +1409,10 @@ export const storeMemorySchema = z.object({
 
 export const getMemoriesSchema = z.object({
   query: z.string().optional().describe('Search query for semantic matching'),
-  type: z.enum(['episodic', 'semantic', 'procedural']).optional().describe('Filter by memory type'),
+  type: z
+    .enum(['episodic', 'semantic', 'procedural', 'emotional'])
+    .optional()
+    .describe('Filter by memory type'),
   limit: z.number().optional().default(10).describe('Maximum memories to return'),
   includeImportance: z.boolean().optional().default(true).describe('Sort by importance vs recency'),
 });
@@ -1429,7 +1613,7 @@ export const consciousnessProtocolTools = {
         },
         type: {
           type: 'string',
-          enum: ['episodic', 'semantic', 'procedural'],
+          enum: ['episodic', 'semantic', 'procedural', 'emotional'],
           description: 'Type of memory',
         },
         importance: {
@@ -1463,7 +1647,7 @@ export const consciousnessProtocolTools = {
         },
         type: {
           type: 'string',
-          enum: ['episodic', 'semantic', 'procedural'],
+          enum: ['episodic', 'semantic', 'procedural', 'emotional'],
           description: 'Filter by memory type',
         },
         limit: {

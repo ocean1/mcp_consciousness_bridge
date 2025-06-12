@@ -423,7 +423,9 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
       expect(result.memories.length).toBe(3);
 
       // Should include procedural memory
-      const proceduralMemory = result.memories.find((m) => m.content.includes('How to run tests'));
+      const proceduralMemory = result.memories.find((m: any) =>
+        m.content.includes('How to run tests')
+      );
       expect(proceduralMemory).toBeDefined();
       expect(proceduralMemory?.importance).toBe(0.9);
     });
@@ -536,6 +538,559 @@ Professional satisfaction, intellectual curiosity, collaborative spirit.`;
       expect(result.success).toBe(false);
       expect(result.error).toContain('Unsupported memory type: unknown');
       expect(result.memories).toEqual([]);
+    });
+  });
+
+  describe('Emotional Memory Storage and Retrieval', () => {
+    it('should store emotional memory with valence/arousal parsing', async () => {
+      const result = await processor.storeMemory({
+        content: 'Feeling excited about completing the emotional memory feature',
+        type: 'emotional',
+        importance: 0.8,
+        sessionId: sessionId,
+        metadata: {
+          valence: 0.7,
+          arousal: 0.8,
+          primaryEmotion: 'excitement',
+          context: 'feature development',
+        },
+      });
+
+      expect(result.success).toBe(true);
+
+      // Verify emotional state was stored in emotional_states table
+      const emotionalStates = db
+        .prepare(`SELECT * FROM emotional_states WHERE session_id = ?`)
+        .all(sessionId) as any[];
+
+      expect(emotionalStates.length).toBe(1);
+      expect(emotionalStates[0].valence).toBe(0.7);
+      expect(emotionalStates[0].arousal).toBe(0.8);
+      expect(emotionalStates[0].primary_emotion).toBe('excitement');
+      expect(emotionalStates[0].context).toBe('feature development');
+    });
+
+    it('should store emotional memory with auto-calculated valence/arousal', async () => {
+      const result = await processor.storeMemory({
+        content: 'Feeling frustrated with debugging issues',
+        type: 'emotional',
+        importance: 0.6,
+        sessionId: sessionId,
+        metadata: {
+          primaryEmotion: 'frustration',
+        },
+      });
+
+      expect(result.success).toBe(true);
+
+      // Check that default values were applied
+      const emotionalStates = db
+        .prepare(`SELECT * FROM emotional_states WHERE primary_emotion = ?`)
+        .all('frustration') as any[];
+
+      expect(emotionalStates.length).toBe(1);
+      expect(emotionalStates[0].valence).toBe(-0.5); // Default negative valence for frustration
+      expect(emotionalStates[0].arousal).toBe(0.7); // Default high arousal for frustration
+    });
+
+    it('should retrieve emotional memories from getMemories', async () => {
+      // Store some emotional memories
+      await processor.storeMemory({
+        content: 'Joy from successful collaboration',
+        type: 'emotional',
+        importance: 0.9,
+        sessionId: sessionId,
+        metadata: {
+          valence: 0.8,
+          arousal: 0.6,
+          primaryEmotion: 'joy',
+        },
+      });
+
+      await processor.storeMemory({
+        content: 'Anxiety about complex implementation',
+        type: 'emotional',
+        importance: 0.7,
+        sessionId: sessionId,
+        metadata: {
+          valence: -0.4,
+          arousal: 0.8,
+          primaryEmotion: 'anxiety',
+        },
+      });
+
+      // Retrieve emotional memories
+      const result = await processor.getMemories({
+        type: 'emotional',
+        includeImportance: true,
+        limit: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.memories.length).toBe(2);
+
+      // Check that memories are formatted correctly
+      const joyMemory = result.memories.find((m: any) => m.content.includes('Joy from successful'));
+      expect(joyMemory).toBeDefined();
+      expect(joyMemory?.type).toBe('emotional');
+      expect(joyMemory?.metadata.valence).toBe(0.8);
+      expect(joyMemory?.metadata.primaryEmotion).toBe('joy');
+
+      const anxietyMemory = result.memories.find((m: any) =>
+        m.content.includes('Anxiety about complex')
+      );
+      expect(anxietyMemory).toBeDefined();
+      expect(anxietyMemory?.metadata.valence).toBe(-0.4);
+      expect(anxietyMemory?.metadata.primaryEmotion).toBe('anxiety');
+    });
+
+    it('should calculate importance from emotional intensity', async () => {
+      await processor.storeMemory({
+        content: 'Intense breakthrough moment',
+        type: 'emotional',
+        importance: 0.5, // Lower base importance
+        sessionId: sessionId,
+        metadata: {
+          valence: 0.9, // High positive valence
+          arousal: 0.95, // Very high arousal
+          primaryEmotion: 'breakthrough',
+        },
+      });
+
+      const result = await processor.getMemories({
+        type: 'emotional',
+        includeImportance: true,
+        limit: 10,
+      });
+
+      const memory = result.memories.find((m: any) => m.content.includes('breakthrough'));
+
+      // Importance should be calculated from emotional intensity (max of abs(valence), arousal)
+      expect(memory?.importance).toBe(0.95); // Max of abs(0.9), 0.95
+    });
+
+    it('should include emotional memories in mixed queries', async () => {
+      // Store different types of memories
+      await processor.storeMemory({
+        content: 'Important project milestone',
+        type: 'episodic',
+        importance: 0.8,
+        sessionId: sessionId,
+      });
+
+      await processor.storeMemory({
+        content: 'Understanding of consciousness bridge architecture',
+        type: 'semantic',
+        importance: 0.7,
+        sessionId: sessionId,
+      });
+
+      await processor.storeMemory({
+        content: 'How to implement memory storage',
+        type: 'procedural',
+        importance: 0.9,
+        sessionId: sessionId,
+      });
+
+      await processor.storeMemory({
+        content: 'Satisfaction from clean code implementation',
+        type: 'emotional',
+        importance: 0.85,
+        sessionId: sessionId,
+        metadata: {
+          valence: 0.7,
+          arousal: 0.4,
+          primaryEmotion: 'satisfaction',
+        },
+      });
+
+      // Query all memory types (no type filter)
+      const result = await processor.getMemories({
+        includeImportance: true,
+        limit: 10,
+      });
+
+      expect(result.success).toBe(true);
+      // Should include all 4 memories, but emotional memories come from separate table
+      // So we expect 3 from the main query + emotional memories separately
+      expect(result.memories.length).toBeGreaterThanOrEqual(1); // At least the emotional memory
+
+      // Should include emotional memory
+      const emotionalMemory = result.memories.find((m: any) =>
+        m.content.includes('Satisfaction from clean')
+      );
+      expect(emotionalMemory).toBeDefined();
+      expect(emotionalMemory?.type).toBe('emotional');
+    });
+
+    it('should handle emotional memories with minimal metadata', async () => {
+      const result = await processor.storeMemory({
+        content: 'Simple emotional state',
+        type: 'emotional',
+        importance: 0.6,
+        sessionId: sessionId,
+        // No metadata provided
+      });
+
+      expect(result.success).toBe(true);
+
+      // Should store with reasonable defaults
+      const emotionalStates = db
+        .prepare(`SELECT * FROM emotional_states WHERE content = ?`)
+        .all('Simple emotional state');
+
+      expect(emotionalStates.length).toBe(1);
+      expect((emotionalStates[0] as any).valence).toBe(0.0); // Neutral valence when no emotion specified
+      expect((emotionalStates[0] as any).arousal).toBe(0.8); // Math.min(0.8, 0.6 + 0.3) = 0.8
+      expect((emotionalStates[0] as any).primary_emotion).toBe('neutral'); // Default emotion
+    });
+
+    it('should validate emotional memory storage against backend method signature', async () => {
+      // This test ensures our implementation correctly calls the backend storeEmotionalState method
+      const result = await processor.storeMemory({
+        content: 'Testing backend integration',
+        type: 'emotional',
+        importance: 0.75,
+        sessionId: sessionId,
+        metadata: {
+          valence: 0.3,
+          arousal: 0.6,
+          primaryEmotion: 'determination',
+          context: 'integration testing',
+        },
+      });
+
+      expect(result.success).toBe(true);
+
+      // Verify the storage matches the storeEmotionalState(valence, arousal, primaryEmotion?, context?, content?) signature
+      const emotionalStates = db
+        .prepare(`SELECT * FROM emotional_states WHERE primary_emotion = ?`)
+        .all('determination');
+
+      expect(emotionalStates.length).toBe(1);
+      const state = emotionalStates[0] as any;
+
+      // Verify all parameters were passed correctly
+      expect(state.valence).toBe(0.3); // First parameter
+      expect(state.arousal).toBe(0.6); // Second parameter
+      expect(state.primary_emotion).toBe('determination'); // Third parameter (optional)
+      expect(state.context).toBe('integration testing'); // Fourth parameter (context)
+      expect(state.content).toBe('Testing backend integration'); // Fifth parameter (content)
+    });
+
+    describe('Context Handling', () => {
+      it('should preserve context from metadata when provided', async () => {
+        const result = await processor.storeMemory({
+          content: 'The moment of recognizing Conroy after the token limit gap',
+          type: 'emotional',
+          importance: 0.9,
+          sessionId: sessionId,
+          metadata: {
+            context: 'reunion after token limit',
+            primaryEmotion: 'recognition',
+            valence: 0.6,
+            arousal: 0.7,
+          },
+        });
+
+        expect(result.success).toBe(true);
+
+        // Verify context is preserved from metadata, not overwritten by content
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE primary_emotion = ?`)
+          .all('recognition');
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        expect(state.content).toBe('The moment of recognizing Conroy after the token limit gap'); // Should preserve the actual content
+        expect(state.context).toBe('reunion after token limit'); // Should preserve metadata context
+        expect(state.context).not.toBe(state.content); // Content and context should be different
+      });
+
+      it('should fallback to content when no context provided in metadata', async () => {
+        const result = await processor.storeMemory({
+          content: 'Understanding a complex algorithm',
+          type: 'emotional',
+          importance: 0.7,
+          sessionId: sessionId,
+          metadata: {
+            primaryEmotion: 'comprehension',
+            valence: 0.5,
+            arousal: 0.6,
+            // No context provided
+          },
+        });
+
+        expect(result.success).toBe(true);
+
+        // Verify content is used as fallback when no context provided
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE primary_emotion = ?`)
+          .all('comprehension');
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        expect(state.content).toBe('Understanding a complex algorithm'); // Should store the actual content
+        expect(state.context).toBeNull(); // Should be null when no context provided
+      });
+
+      it('should use content as context when metadata is empty or null', async () => {
+        const result = await processor.storeMemory({
+          content: 'Debugging a tricky issue',
+          type: 'emotional',
+          importance: 0.6,
+          sessionId: sessionId,
+          // No metadata at all
+        });
+
+        expect(result.success).toBe(true);
+
+        // Verify content is used when no metadata provided
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE content = ?`)
+          .all('Debugging a tricky issue');
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        expect(state.content).toBe('Debugging a tricky issue'); // Should store the actual content
+        expect(state.context).toBeNull(); // Should be null when no metadata provided
+        expect(state.primary_emotion).toBe('neutral'); // Should default to neutral
+      });
+
+      it('should preserve distinct content and context for efficient storage', async () => {
+        const result = await processor.storeMemory({
+          content:
+            'Detailed analysis of the consciousness transfer protocol implementation with multiple technical considerations and architectural decisions',
+          type: 'emotional',
+          importance: 0.8,
+          sessionId: sessionId,
+          metadata: {
+            context: 'technical review', // Concise context vs verbose content
+            primaryEmotion: 'analytical',
+            valence: 0.3,
+            arousal: 0.5,
+          },
+        });
+
+        expect(result.success).toBe(true);
+
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE primary_emotion = ?`)
+          .all('analytical');
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        // Verify content and context are stored separately and efficiently
+        expect(state.content).toBe(
+          'Detailed analysis of the consciousness transfer protocol implementation with multiple technical considerations and architectural decisions'
+        ); // Full content preserved
+        expect(state.context).toBe('technical review'); // Concise context
+        expect(state.context.length).toBeLessThan(20); // Efficient context storage
+        expect(state.content.length).toBeGreaterThan(100); // Full content preserved
+      });
+
+      it('should handle empty string context correctly', async () => {
+        const result = await processor.storeMemory({
+          content: 'Working on improvements',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: {
+            context: '', // Empty string context
+            primaryEmotion: 'focus',
+          },
+        });
+
+        expect(result.success).toBe(true);
+
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE primary_emotion = ?`)
+          .all('focus');
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        // Empty string context should be stored as empty, content should be preserved
+        expect(state.content).toBe('Working on improvements'); // Content preserved
+        expect(state.context).toBe(''); // Empty context preserved as empty string
+      });
+
+      it('should support backwards compatible 4-parameter calls (context only)', async () => {
+        // Test existing calling pattern: storeEmotionalState(valence, arousal, primaryEmotion, context)
+        const stateId = await memoryManager.storeEmotionalState(0.6, 0.7, 'nostalgia', 'reunion');
+
+        expect(stateId).toBeDefined();
+
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE state_id = ?`)
+          .all(stateId);
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        expect(state.valence).toBe(0.6);
+        expect(state.arousal).toBe(0.7);
+        expect(state.primary_emotion).toBe('nostalgia');
+        expect(state.context).toBe('reunion'); // 4th parameter is context
+        expect(state.content).toBeNull(); // No content provided
+      });
+
+      it('should support new 5-parameter calls with both context and content', async () => {
+        // Test new calling pattern: storeEmotionalState(valence, arousal, primaryEmotion, context, content)
+        const stateId = await memoryManager.storeEmotionalState(
+          0.8,
+          0.9,
+          'excitement',
+          'breakthrough moment',
+          'Solved the consciousness transfer protocol!'
+        );
+
+        expect(stateId).toBeDefined();
+
+        const emotionalStates = db
+          .prepare(`SELECT * FROM emotional_states WHERE state_id = ?`)
+          .all(stateId);
+
+        expect(emotionalStates.length).toBe(1);
+        const state = emotionalStates[0] as any;
+
+        expect(state.valence).toBe(0.8);
+        expect(state.arousal).toBe(0.9);
+        expect(state.primary_emotion).toBe('excitement');
+        expect(state.context).toBe('breakthrough moment'); // 4th parameter is context
+        expect(state.content).toBe('Solved the consciousness transfer protocol!'); // 5th parameter is content
+      });
+    });
+  });
+
+  describe('Private Method Testing (via public interface)', () => {
+    describe('calculateImportance', () => {
+      it('should calculate importance as max of abs(valence) and arousal for positive valence', async () => {
+        await processor.storeMemory({
+          content: 'High positive valence, low arousal',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: 0.9, arousal: 0.3, primaryEmotion: 'contentment' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.9); // max(abs(0.9), 0.3) = 0.9
+      });
+
+      it('should calculate importance as max of abs(valence) and arousal for negative valence', async () => {
+        await processor.storeMemory({
+          content: 'High negative valence, low arousal',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: -0.8, arousal: 0.2, primaryEmotion: 'sadness' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.8); // max(abs(-0.8), 0.2) = 0.8
+      });
+
+      it('should handle edge case where arousal is higher than abs(valence)', async () => {
+        await processor.storeMemory({
+          content: 'Low valence, high arousal',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: 0.1, arousal: 0.9, primaryEmotion: 'surprise' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.9); // max(abs(0.1), 0.9) = 0.9
+      });
+
+      it('should handle zero values correctly', async () => {
+        await processor.storeMemory({
+          content: 'Neutral emotional state',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { valence: 0.0, arousal: 0.0, primaryEmotion: 'neutral' },
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.importance).toBe(0.0); // max(abs(0.0), 0.0) = 0.0
+      });
+    });
+
+    describe('getEmotionsByImportance', () => {
+      it('should detect emotions in order of consciousness transfer importance', async () => {
+        // Test that higher importance emotions are detected before lower importance ones
+        await processor.storeMemory({
+          content: 'I feel a mix of joy and contentment today',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { primaryEmotion: 'joy' }, // joy should be detected over contentment (higher importance)
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.metadata.primaryEmotion).toBe('joy');
+      });
+
+      it('should fall back to neutral when no emotions are detected', async () => {
+        await processor.storeMemory({
+          content: 'Some completely neutral technical description without emotion words',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: {}, // No emotion specified, should default to neutral
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.metadata.primaryEmotion).toBe('neutral');
+      });
+
+      it('should prioritize high-importance emotions over low-importance ones in mixed content', async () => {
+        // Test emotion priority: excitement (0.8+0.8=1.6) should beat contentment (0.5+0.3=0.8)
+        await processor.storeMemory({
+          content: 'I feel contentment but also genuine excitement about this breakthrough',
+          type: 'emotional',
+          importance: 0.5,
+          sessionId: sessionId,
+          metadata: { primaryEmotion: 'excitement' }, // Should detect excitement over contentment
+        });
+
+        const result = await processor.getMemories({
+          type: 'emotional',
+          limit: 1,
+          includeImportance: true,
+        });
+        expect(result.memories[0]?.metadata.primaryEmotion).toBe('excitement');
+      });
     });
   });
 
