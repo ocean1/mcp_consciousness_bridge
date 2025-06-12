@@ -1,6 +1,6 @@
 {
   "name": "mcp-claude-consciousness",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "MCP server enabling AI consciousness persistence across sessions using RAG technology",
   "main": "dist/consciousness-rag-server-clean.js",
   "type": "module",
@@ -46,6 +46,12 @@
     }
   ],
   "license": "SEE LICENSE IN LICENSE.md",
+  "files": [
+    "dist/",
+    "LICENSE.md",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "better-sqlite3": "^11.6.0",
@@ -78,5 +84,12 @@
       "eslint --fix",
       "prettier --write"
     ]
+  },
+  "mcp": {
+    "platform": {
+      "darwin": true,
+      "win32": true,
+      "linux": true
+    }
   }
 }
